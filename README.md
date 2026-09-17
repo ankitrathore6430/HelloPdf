@@ -6,6 +6,23 @@ Hello PDF runs entirely inside the user's browser using WebAssembly and client-s
 
 ---
 
+## 🌐 Quick Deployment to GitHub Pages (Automatic on push to `main`)
+
+This repository is already configured with an automated **GitHub Actions** workflow (`.github/workflows/deploy.yml`):
+
+1. Push your code to your GitHub repo on branch `main`:
+   ```bash
+   git add .
+   git commit -m "deploy: configure GitHub Pages"
+   git push -u origin main
+   ```
+2. On GitHub, go to your repository **Settings** > **Pages** (in the left sidebar).
+3. Under **Build and deployment** > **Source**, choose **GitHub Actions**.
+4. That's it! Every time you push to `main`, GitHub will automatically build and deploy your app to:
+   `https://<your-username>.github.io/<your-repo-name>/`
+
+---
+
 ## 🚀 Quick Deployment to Render (Static Site)
 
 This project is fully configured for **Render Static Site**:
