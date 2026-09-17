@@ -1,0 +1,6 @@
+{
+  "name": "Hello PDF",
+  "description": "Complete client-side 100+ PDF tool suite for merging, splitting, converting, organizing, and editing PDFs in the browser.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
