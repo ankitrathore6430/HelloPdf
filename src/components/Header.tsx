@@ -4,12 +4,10 @@ import {
   Star,
   Shield,
   Search,
-  Sparkles,
   Menu,
   X,
   ChevronDown,
   ArrowRight,
-  Flame,
   LayoutGrid,
   Layers,
   Zap,
@@ -18,10 +16,13 @@ import {
   PenTool,
   ShieldCheck,
   FileSpreadsheet,
+  Flame,
+  Sparkles,
+  Sliders,
 } from 'lucide-react';
 import { ThemeToggle } from './ThemeToggle';
 import { ThemeMode } from '../hooks/useTheme';
-import { TOOLS_DATA, CATEGORIES } from '../data/toolsData';
+import { TOOLS_DATA } from '../data/toolsData';
 import { ToolItem, ToolCategory } from '../types';
 import { DynamicIcon } from './DynamicIcon';
 
@@ -38,84 +39,6 @@ interface HeaderProps {
   activeCategoryId?: ToolCategory;
   activeToolId?: string;
 }
-
-interface MenuNavCategory {
-  id: ToolCategory;
-  name: string;
-  shortLabel: string;
-  icon: any;
-  categoryKey: string;
-  badge?: string;
-  colorClass: string;
-}
-
-const MENU_CATEGORIES: MenuNavCategory[] = [
-  {
-    id: 'organize',
-    name: 'Merge & Split',
-    shortLabel: 'Merge & Split',
-    icon: Layers,
-    categoryKey: 'organize',
-    colorClass: 'text-red-600 dark:text-red-400',
-  },
-  {
-    id: 'optimize',
-    name: 'Compress & Clean',
-    shortLabel: 'Compress',
-    icon: Zap,
-    categoryKey: 'optimize',
-    colorClass: 'text-amber-600 dark:text-amber-400',
-  },
-  {
-    id: 'convert-to-pdf',
-    name: 'Convert to PDF',
-    shortLabel: 'Convert to PDF',
-    icon: FileInput,
-    categoryKey: 'convert-to-pdf',
-    colorClass: 'text-blue-600 dark:text-blue-400',
-  },
-  {
-    id: 'convert-from-pdf',
-    name: 'Convert from PDF',
-    shortLabel: 'Convert from PDF',
-    icon: FileOutput,
-    categoryKey: 'convert-from-pdf',
-    colorClass: 'text-purple-600 dark:text-purple-400',
-  },
-  {
-    id: 'edit-annotate',
-    name: 'Edit & Annotate',
-    shortLabel: 'Edit & Sign',
-    icon: PenTool,
-    categoryKey: 'edit-annotate',
-    colorClass: 'text-emerald-600 dark:text-emerald-400',
-  },
-  {
-    id: 'security',
-    name: 'Security & Rights',
-    shortLabel: 'Security',
-    icon: ShieldCheck,
-    categoryKey: 'security',
-    colorClass: 'text-indigo-600 dark:text-indigo-400',
-  },
-  {
-    id: 'business',
-    name: 'Business & Docs',
-    shortLabel: 'Business',
-    icon: FileSpreadsheet,
-    categoryKey: 'business',
-    colorClass: 'text-pink-600 dark:text-pink-400',
-  },
-  {
-    id: 'trending',
-    name: 'Trending Tools',
-    shortLabel: 'Trending',
-    icon: Flame,
-    categoryKey: 'trending',
-    badge: 'Hot',
-    colorClass: 'text-orange-600 dark:text-orange-400',
-  },
-];
 
 export const Header: React.FC<HeaderProps> = ({
   onSearchFocus,
@@ -135,6 +58,7 @@ export const Header: React.FC<HeaderProps> = ({
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [expandedMobileCategory, setExpandedMobileCategory] = useState<string | null>('organize');
 
+  const closeTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   const navContainerRef = useRef<HTMLDivElement | null>(null);
 
   // Close dropdown on click outside
@@ -142,23 +66,43 @@ export const Header: React.FC<HeaderProps> = ({
     const handleClickOutside = (e: MouseEvent) => {
       if (navContainerRef.current && !navContainerRef.current.contains(e.target as Node)) {
         setActiveDropdown(null);
+        setShowPrivacyNotice(false);
       }
     };
     document.addEventListener('mousedown', handleClickOutside);
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, []);
 
-  // Close dropdown on Escape key
+  // Close on Escape key
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
       if (e.key === 'Escape') {
         setActiveDropdown(null);
         setIsMobileMenuOpen(false);
+        setShowPrivacyNotice(false);
       }
     };
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, []);
+
+  // Smooth hover handlers with small grace period to prevent flickering
+  const handleMouseEnter = (menuKey: string) => {
+    if (closeTimeoutRef.current) {
+      clearTimeout(closeTimeoutRef.current);
+      closeTimeoutRef.current = null;
+    }
+    setActiveDropdown(menuKey);
+  };
+
+  const handleMouseLeave = () => {
+    if (closeTimeoutRef.current) {
+      clearTimeout(closeTimeoutRef.current);
+    }
+    closeTimeoutRef.current = setTimeout(() => {
+      setActiveDropdown(null);
+    }, 180);
+  };
 
   const handleToolClick = (tool: ToolItem) => {
     setActiveDropdown(null);
@@ -178,23 +122,25 @@ export const Header: React.FC<HeaderProps> = ({
     }
   };
 
-  // Helper to get tools for a menu category
-  const getCategoryTools = (menuCat: MenuNavCategory): ToolItem[] => {
-    if (menuCat.id === 'trending') {
-      return TOOLS_DATA.filter((t) => t.badge === 'Trending' || (t.featured && t.rank <= 6)).slice(0, 8);
-    }
-    return TOOLS_DATA.filter((t) => t.category === menuCat.categoryKey).slice(0, 8);
-  };
+  // Curated lists for clean, structured menus
+  const organizeTools = TOOLS_DATA.filter((t) => t.category === 'organize').slice(0, 6);
+  const optimizeTools = TOOLS_DATA.filter((t) => t.category === 'optimize').slice(0, 5);
+  const convertToTools = TOOLS_DATA.filter((t) => t.category === 'convert-to-pdf').slice(0, 6);
+  const convertFromTools = TOOLS_DATA.filter((t) => t.category === 'convert-from-pdf').slice(0, 6);
+  const editSignTools = TOOLS_DATA.filter(
+    (t) =>
+      ['digital-signature', 'add-page-numbers', 'dark-mode-pdf', 'watermark-pdf', 'protect-pdf', 'pdf-redaction'].includes(t.id) ||
+      (t.category === 'edit-annotate' && t.rank <= 6)
+  ).slice(0, 6);
 
   return (
     <header
       ref={navContainerRef}
       className="sticky top-0 z-40 bg-white/95 dark:bg-neutral-900/95 backdrop-blur-md border-b border-neutral-200/80 dark:border-neutral-800 transition-colors shadow-2xs"
     >
-      {/* 1. TOP BRAND & ACTION BAR */}
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between gap-3 sm:gap-4">
-        {/* Logo and Brand */}
-        <div className="flex items-center gap-3">
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between gap-4">
+        {/* 1. BRAND LOGO */}
+        <div className="flex items-center gap-6 shrink-0">
           <button
             type="button"
             onClick={(e) => {
@@ -203,56 +149,464 @@ export const Header: React.FC<HeaderProps> = ({
               setIsMobileMenuOpen(false);
               if (onGoHome) onGoHome();
             }}
-            className="flex items-center gap-2.5 group text-left cursor-pointer"
+            className="flex items-center gap-2.5 group text-left cursor-pointer select-none"
           >
-            <div className="w-10 h-10 rounded-xl bg-gradient-to-tr from-rose-600 to-red-500 flex items-center justify-center text-white shadow-md shadow-red-500/25 group-hover:scale-105 transition-transform">
+            <div className="w-10 h-10 rounded-xl bg-gradient-to-tr from-rose-600 to-red-500 flex items-center justify-center text-white shadow-md shadow-red-500/20 group-hover:scale-105 transition-transform">
               <FileText className="w-5 h-5 stroke-[2.2]" />
             </div>
             <div className="flex flex-col">
               <div className="flex items-center gap-1.5">
-                <span className="font-extrabold text-xl tracking-tight text-neutral-900 dark:text-white">
+                <span className="font-black text-xl tracking-tight text-neutral-900 dark:text-white">
                   Hello <span className="text-red-600 dark:text-red-500">PDF</span>
                 </span>
                 <span className="text-[10px] uppercase font-bold tracking-wider px-1.5 py-0.5 rounded bg-red-100 dark:bg-red-950/60 text-red-700 dark:text-red-400 border border-red-200 dark:border-red-800/60">
-                  108 Tools
+                  108
                 </span>
               </div>
               <span className="text-[11px] text-neutral-500 dark:text-neutral-400 -mt-0.5 hidden sm:block font-medium">
-                Free Online PDF Suite
+                Free Browser Suite
               </span>
             </div>
           </button>
         </div>
 
-        {/* Search shortcut button */}
-        <div className="hidden md:flex items-center flex-1 max-w-md mx-4">
+        {/* 2. DESKTOP MAIN NAVIGATION MENU BAR (Clean, Single Row, High Contrast) */}
+        <nav aria-label="Desktop Main Navigation" className="hidden lg:flex items-center gap-1">
+          {/* MENU ITEM 1: Merge & Split */}
+          <div
+            className="relative"
+            onMouseEnter={() => handleMouseEnter('organize')}
+            onMouseLeave={handleMouseLeave}
+          >
+            <button
+              type="button"
+              onClick={() => setActiveDropdown(activeDropdown === 'organize' ? null : 'organize')}
+              className={`flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-bold transition-colors cursor-pointer select-none ${
+                activeDropdown === 'organize'
+                  ? 'bg-neutral-100 dark:bg-neutral-800 text-neutral-900 dark:text-white'
+                  : 'text-neutral-700 dark:text-neutral-300 hover:text-neutral-900 dark:hover:text-white hover:bg-neutral-100/80 dark:hover:bg-neutral-800/60'
+              }`}
+            >
+              <Layers className="w-3.5 h-3.5 text-red-600 dark:text-red-400" />
+              <span>Merge & Split</span>
+              <ChevronDown
+                className={`w-3.5 h-3.5 text-neutral-400 transition-transform duration-200 ${
+                  activeDropdown === 'organize' ? 'rotate-180 text-red-600' : ''
+                }`}
+              />
+            </button>
+
+            {/* Dropdown Card */}
+            {activeDropdown === 'organize' && (
+              <div className="absolute top-full left-0 pt-1.5 w-80 z-50 animate-in fade-in slide-in-from-top-1 duration-150">
+                <div className="p-3 bg-white dark:bg-neutral-900 rounded-2xl shadow-xl border border-neutral-200 dark:border-neutral-700">
+                  <div className="flex items-center justify-between pb-2 mb-2 border-b border-neutral-100 dark:border-neutral-800">
+                    <span className="text-[11px] font-bold text-neutral-400 uppercase tracking-wider">
+                      Page & File Operations
+                    </span>
+                    <button
+                      type="button"
+                      onClick={() => handleCategoryNav('organize')}
+                      className="text-[11px] font-bold text-red-600 dark:text-red-400 hover:underline flex items-center gap-1 cursor-pointer"
+                    >
+                      <span>View all 21</span>
+                      <ArrowRight className="w-3 h-3" />
+                    </button>
+                  </div>
+                  <div className="space-y-1">
+                    {organizeTools.map((tool) => (
+                      <button
+                        key={tool.id}
+                        type="button"
+                        onClick={() => handleToolClick(tool)}
+                        className={`w-full p-2 rounded-xl text-left transition-colors flex items-center gap-2.5 cursor-pointer group ${
+                          activeToolId === tool.id
+                            ? 'bg-red-50 dark:bg-red-950/40 text-red-700 dark:text-red-400'
+                            : 'hover:bg-neutral-100 dark:hover:bg-neutral-800 text-neutral-800 dark:text-neutral-200'
+                        }`}
+                      >
+                        <div className="w-7 h-7 rounded-lg bg-neutral-100 dark:bg-neutral-800 flex items-center justify-center shrink-0 group-hover:scale-105 transition-transform text-neutral-700 dark:text-neutral-300">
+                          <DynamicIcon name={tool.iconName} className="w-3.5 h-3.5" />
+                        </div>
+                        <div className="min-w-0 flex-1">
+                          <div className="flex items-center gap-1.5">
+                            <span className="text-xs font-bold truncate block">{tool.name}</span>
+                            {tool.badge && (
+                              <span className="text-[8px] font-bold uppercase px-1 rounded bg-neutral-200 dark:bg-neutral-700 text-neutral-600 dark:text-neutral-300 shrink-0">
+                                {tool.badge}
+                              </span>
+                            )}
+                          </div>
+                          <p className="text-[10px] text-neutral-500 line-clamp-1">{tool.shortDesc}</p>
+                        </div>
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              </div>
+            )}
+          </div>
+
+          {/* MENU ITEM 2: Compress & Optimize */}
+          <div
+            className="relative"
+            onMouseEnter={() => handleMouseEnter('optimize')}
+            onMouseLeave={handleMouseLeave}
+          >
+            <button
+              type="button"
+              onClick={() => setActiveDropdown(activeDropdown === 'optimize' ? null : 'optimize')}
+              className={`flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-bold transition-colors cursor-pointer select-none ${
+                activeDropdown === 'optimize'
+                  ? 'bg-neutral-100 dark:bg-neutral-800 text-neutral-900 dark:text-white'
+                  : 'text-neutral-700 dark:text-neutral-300 hover:text-neutral-900 dark:hover:text-white hover:bg-neutral-100/80 dark:hover:bg-neutral-800/60'
+              }`}
+            >
+              <Zap className="w-3.5 h-3.5 text-amber-600 dark:text-amber-400" />
+              <span>Compress</span>
+              <ChevronDown
+                className={`w-3.5 h-3.5 text-neutral-400 transition-transform duration-200 ${
+                  activeDropdown === 'optimize' ? 'rotate-180 text-amber-600' : ''
+                }`}
+              />
+            </button>
+
+            {/* Dropdown Card */}
+            {activeDropdown === 'optimize' && (
+              <div className="absolute top-full left-0 pt-1.5 w-80 z-50 animate-in fade-in slide-in-from-top-1 duration-150">
+                <div className="p-3 bg-white dark:bg-neutral-900 rounded-2xl shadow-xl border border-neutral-200 dark:border-neutral-700">
+                  <div className="flex items-center justify-between pb-2 mb-2 border-b border-neutral-100 dark:border-neutral-800">
+                    <span className="text-[11px] font-bold text-neutral-400 uppercase tracking-wider">
+                      Size & Pre-press
+                    </span>
+                    <button
+                      type="button"
+                      onClick={() => handleCategoryNav('optimize')}
+                      className="text-[11px] font-bold text-amber-600 dark:text-amber-400 hover:underline flex items-center gap-1 cursor-pointer"
+                    >
+                      <span>View all 5</span>
+                      <ArrowRight className="w-3 h-3" />
+                    </button>
+                  </div>
+                  <div className="space-y-1">
+                    {optimizeTools.map((tool) => (
+                      <button
+                        key={tool.id}
+                        type="button"
+                        onClick={() => handleToolClick(tool)}
+                        className={`w-full p-2 rounded-xl text-left transition-colors flex items-center gap-2.5 cursor-pointer group ${
+                          activeToolId === tool.id
+                            ? 'bg-amber-50 dark:bg-amber-950/40 text-amber-700 dark:text-amber-400'
+                            : 'hover:bg-neutral-100 dark:hover:bg-neutral-800 text-neutral-800 dark:text-neutral-200'
+                        }`}
+                      >
+                        <div className="w-7 h-7 rounded-lg bg-neutral-100 dark:bg-neutral-800 flex items-center justify-center shrink-0 group-hover:scale-105 transition-transform text-neutral-700 dark:text-neutral-300">
+                          <DynamicIcon name={tool.iconName} className="w-3.5 h-3.5" />
+                        </div>
+                        <div className="min-w-0 flex-1">
+                          <div className="flex items-center gap-1.5">
+                            <span className="text-xs font-bold truncate block">{tool.name}</span>
+                            {tool.badge && (
+                              <span className="text-[8px] font-bold uppercase px-1 rounded bg-amber-100 dark:bg-amber-950 text-amber-700 dark:text-amber-300 shrink-0">
+                                {tool.badge}
+                              </span>
+                            )}
+                          </div>
+                          <p className="text-[10px] text-neutral-500 line-clamp-1">{tool.shortDesc}</p>
+                        </div>
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              </div>
+            )}
+          </div>
+
+          {/* MENU ITEM 3: Convert PDF (Side-by-Side Mega Dropdown) */}
+          <div
+            className="relative"
+            onMouseEnter={() => handleMouseEnter('convert')}
+            onMouseLeave={handleMouseLeave}
+          >
+            <button
+              type="button"
+              onClick={() => setActiveDropdown(activeDropdown === 'convert' ? null : 'convert')}
+              className={`flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-bold transition-colors cursor-pointer select-none ${
+                activeDropdown === 'convert'
+                  ? 'bg-neutral-100 dark:bg-neutral-800 text-neutral-900 dark:text-white'
+                  : 'text-neutral-700 dark:text-neutral-300 hover:text-neutral-900 dark:hover:text-white hover:bg-neutral-100/80 dark:hover:bg-neutral-800/60'
+              }`}
+            >
+              <FileInput className="w-3.5 h-3.5 text-blue-600 dark:text-blue-400" />
+              <span>Convert PDF</span>
+              <ChevronDown
+                className={`w-3.5 h-3.5 text-neutral-400 transition-transform duration-200 ${
+                  activeDropdown === 'convert' ? 'rotate-180 text-blue-600' : ''
+                }`}
+              />
+            </button>
+
+            {/* Side-by-Side Convert Dropdown */}
+            {activeDropdown === 'convert' && (
+              <div className="absolute top-full left-1/2 -translate-x-1/2 pt-1.5 w-[560px] z-50 animate-in fade-in slide-in-from-top-1 duration-150">
+                <div className="p-4 bg-white dark:bg-neutral-900 rounded-2xl shadow-2xl border border-neutral-200 dark:border-neutral-700 grid grid-cols-2 gap-4">
+                  {/* Column 1: Convert TO PDF */}
+                  <div>
+                    <div className="flex items-center justify-between pb-2 mb-2 border-b border-neutral-100 dark:border-neutral-800">
+                      <span className="text-[11px] font-bold text-blue-600 dark:text-blue-400 uppercase tracking-wider flex items-center gap-1.5">
+                        <FileInput className="w-3.5 h-3.5" />
+                        Convert TO PDF
+                      </span>
+                      <button
+                        type="button"
+                        onClick={() => handleCategoryNav('convert-to-pdf')}
+                        className="text-[10px] font-bold text-neutral-500 hover:text-neutral-900 dark:hover:text-white"
+                      >
+                        All 9 →
+                      </button>
+                    </div>
+                    <div className="space-y-1">
+                      {convertToTools.map((tool) => (
+                        <button
+                          key={tool.id}
+                          type="button"
+                          onClick={() => handleToolClick(tool)}
+                          className="w-full p-2 rounded-xl text-left hover:bg-neutral-100 dark:hover:bg-neutral-800 flex items-center gap-2 cursor-pointer group transition-colors"
+                        >
+                          <DynamicIcon
+                            name={tool.iconName}
+                            className="w-3.5 h-3.5 text-blue-500 shrink-0 group-hover:scale-110 transition-transform"
+                          />
+                          <span className="text-xs font-semibold text-neutral-800 dark:text-neutral-200 truncate">
+                            {tool.name}
+                          </span>
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+
+                  {/* Column 2: Convert FROM PDF */}
+                  <div>
+                    <div className="flex items-center justify-between pb-2 mb-2 border-b border-neutral-100 dark:border-neutral-800">
+                      <span className="text-[11px] font-bold text-purple-600 dark:text-purple-400 uppercase tracking-wider flex items-center gap-1.5">
+                        <FileOutput className="w-3.5 h-3.5" />
+                        Convert FROM PDF
+                      </span>
+                      <button
+                        type="button"
+                        onClick={() => handleCategoryNav('convert-from-pdf')}
+                        className="text-[10px] font-bold text-neutral-500 hover:text-neutral-900 dark:hover:text-white"
+                      >
+                        All 8 →
+                      </button>
+                    </div>
+                    <div className="space-y-1">
+                      {convertFromTools.map((tool) => (
+                        <button
+                          key={tool.id}
+                          type="button"
+                          onClick={() => handleToolClick(tool)}
+                          className="w-full p-2 rounded-xl text-left hover:bg-neutral-100 dark:hover:bg-neutral-800 flex items-center gap-2 cursor-pointer group transition-colors"
+                        >
+                          <DynamicIcon
+                            name={tool.iconName}
+                            className="w-3.5 h-3.5 text-purple-500 shrink-0 group-hover:scale-110 transition-transform"
+                          />
+                          <span className="text-xs font-semibold text-neutral-800 dark:text-neutral-200 truncate">
+                            {tool.name}
+                          </span>
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                </div>
+              </div>
+            )}
+          </div>
+
+          {/* MENU ITEM 4: Edit & Sign */}
+          <div
+            className="relative"
+            onMouseEnter={() => handleMouseEnter('edit-sign')}
+            onMouseLeave={handleMouseLeave}
+          >
+            <button
+              type="button"
+              onClick={() => setActiveDropdown(activeDropdown === 'edit-sign' ? null : 'edit-sign')}
+              className={`flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-bold transition-colors cursor-pointer select-none ${
+                activeDropdown === 'edit-sign'
+                  ? 'bg-neutral-100 dark:bg-neutral-800 text-neutral-900 dark:text-white'
+                  : 'text-neutral-700 dark:text-neutral-300 hover:text-neutral-900 dark:hover:text-white hover:bg-neutral-100/80 dark:hover:bg-neutral-800/60'
+              }`}
+            >
+              <PenTool className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400" />
+              <span>Edit & Sign</span>
+              <ChevronDown
+                className={`w-3.5 h-3.5 text-neutral-400 transition-transform duration-200 ${
+                  activeDropdown === 'edit-sign' ? 'rotate-180 text-emerald-600' : ''
+                }`}
+              />
+            </button>
+
+            {/* Dropdown Card */}
+            {activeDropdown === 'edit-sign' && (
+              <div className="absolute top-full left-0 pt-1.5 w-80 z-50 animate-in fade-in slide-in-from-top-1 duration-150">
+                <div className="p-3 bg-white dark:bg-neutral-900 rounded-2xl shadow-xl border border-neutral-200 dark:border-neutral-700">
+                  <div className="flex items-center justify-between pb-2 mb-2 border-b border-neutral-100 dark:border-neutral-800">
+                    <span className="text-[11px] font-bold text-neutral-400 uppercase tracking-wider">
+                      Annotation & Signatures
+                    </span>
+                    <button
+                      type="button"
+                      onClick={() => handleCategoryNav('edit-annotate')}
+                      className="text-[11px] font-bold text-emerald-600 dark:text-emerald-400 hover:underline flex items-center gap-1 cursor-pointer"
+                    >
+                      <span>Explore all</span>
+                      <ArrowRight className="w-3 h-3" />
+                    </button>
+                  </div>
+                  <div className="space-y-1">
+                    {editSignTools.map((tool) => (
+                      <button
+                        key={tool.id}
+                        type="button"
+                        onClick={() => handleToolClick(tool)}
+                        className={`w-full p-2 rounded-xl text-left transition-colors flex items-center gap-2.5 cursor-pointer group ${
+                          activeToolId === tool.id
+                            ? 'bg-emerald-50 dark:bg-emerald-950/40 text-emerald-700 dark:text-emerald-400'
+                            : 'hover:bg-neutral-100 dark:hover:bg-neutral-800 text-neutral-800 dark:text-neutral-200'
+                        }`}
+                      >
+                        <div className="w-7 h-7 rounded-lg bg-neutral-100 dark:bg-neutral-800 flex items-center justify-center shrink-0 group-hover:scale-105 transition-transform text-neutral-700 dark:text-neutral-300">
+                          <DynamicIcon name={tool.iconName} className="w-3.5 h-3.5" />
+                        </div>
+                        <div className="min-w-0 flex-1">
+                          <div className="flex items-center gap-1.5">
+                            <span className="text-xs font-bold truncate block">{tool.name}</span>
+                            {tool.badge && (
+                              <span className="text-[8px] font-bold uppercase px-1 rounded bg-emerald-100 dark:bg-emerald-950 text-emerald-700 dark:text-emerald-300 shrink-0">
+                                {tool.badge}
+                              </span>
+                            )}
+                          </div>
+                          <p className="text-[10px] text-neutral-500 line-clamp-1">{tool.shortDesc}</p>
+                        </div>
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              </div>
+            )}
+          </div>
+
+          {/* MENU ITEM 5: All Tools (Categorized Directory Mega Dropdown) */}
+          <div
+            className="relative"
+            onMouseEnter={() => handleMouseEnter('all-tools')}
+            onMouseLeave={handleMouseLeave}
+          >
+            <button
+              type="button"
+              onClick={() => {
+                const el = document.getElementById('all-tools');
+                if (el) {
+                  el.scrollIntoView({ behavior: 'smooth' });
+                } else {
+                  handleCategoryNav('all');
+                }
+              }}
+              className="flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-bold bg-neutral-100 dark:bg-neutral-800 hover:bg-neutral-200 dark:hover:bg-neutral-700 text-neutral-900 dark:text-white transition-colors cursor-pointer select-none"
+            >
+              <LayoutGrid className="w-3.5 h-3.5 text-neutral-600 dark:text-neutral-300" />
+              <span>All 108 Tools</span>
+              <ChevronDown
+                className={`w-3.5 h-3.5 text-neutral-400 transition-transform duration-200 ${
+                  activeDropdown === 'all-tools' ? 'rotate-180' : ''
+                }`}
+              />
+            </button>
+
+            {/* Mega Dropdown Grid */}
+            {activeDropdown === 'all-tools' && (
+              <div className="absolute top-full right-0 pt-1.5 w-[680px] z-50 animate-in fade-in slide-in-from-top-1 duration-150">
+                <div className="p-4 bg-white dark:bg-neutral-900 rounded-2xl shadow-2xl border border-neutral-200 dark:border-neutral-700">
+                  <div className="flex items-center justify-between pb-3 mb-3 border-b border-neutral-100 dark:border-neutral-800">
+                    <div>
+                      <span className="font-extrabold text-sm text-neutral-900 dark:text-white block">
+                        Complete PDF Tools Directory
+                      </span>
+                      <span className="text-[11px] text-neutral-500">
+                        108 tools grouped by specialized workflows
+                      </span>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => handleCategoryNav('all')}
+                      className="px-3 py-1.5 rounded-lg bg-red-600 hover:bg-red-700 text-white text-xs font-bold transition-colors cursor-pointer"
+                    >
+                      Browse Full Grid
+                    </button>
+                  </div>
+
+                  <div className="grid grid-cols-3 gap-3">
+                    {[
+                      { id: 'organize', name: 'Merge & Split', count: 21, icon: Layers, color: 'text-red-500' },
+                      { id: 'optimize', name: 'Compress & Clean', count: 5, icon: Zap, color: 'text-amber-500' },
+                      { id: 'convert-to-pdf', name: 'Convert to PDF', count: 9, icon: FileInput, color: 'text-blue-500' },
+                      { id: 'convert-from-pdf', name: 'Convert from PDF', count: 8, icon: FileOutput, color: 'text-purple-500' },
+                      { id: 'edit-annotate', name: 'Edit & Annotate', count: 14, icon: PenTool, color: 'text-emerald-500' },
+                      { id: 'security', name: 'Security & Rights', count: 12, icon: ShieldCheck, color: 'text-indigo-500' },
+                      { id: 'business', name: 'Business & Docs', count: 25, icon: FileSpreadsheet, color: 'text-pink-500' },
+                      { id: 'advanced', name: 'Advanced Utilities', count: 14, icon: Sliders, color: 'text-cyan-500' },
+                      { id: 'trending', name: 'Trending Tools', count: 12, icon: Flame, color: 'text-orange-500' },
+                    ].map((cat) => {
+                      const CatIcon = cat.icon;
+                      return (
+                        <button
+                          key={cat.id}
+                          type="button"
+                          onClick={() => handleCategoryNav(cat.id as ToolCategory)}
+                          className="p-2.5 rounded-xl bg-neutral-50 dark:bg-neutral-800/60 hover:bg-neutral-100 dark:hover:bg-neutral-800 text-left transition-all border border-neutral-100 dark:border-neutral-800/80 cursor-pointer group"
+                        >
+                          <div className="flex items-center justify-between mb-1">
+                            <CatIcon className={`w-4 h-4 ${cat.color} group-hover:scale-110 transition-transform`} />
+                            <span className="text-[10px] font-bold text-neutral-400 bg-white dark:bg-neutral-900 px-1.5 py-0.2 rounded border border-neutral-200 dark:border-neutral-700">
+                              {cat.count}
+                            </span>
+                          </div>
+                          <span className="text-xs font-bold text-neutral-900 dark:text-neutral-100 block truncate group-hover:text-red-600 dark:group-hover:text-red-400">
+                            {cat.name}
+                          </span>
+                        </button>
+                      );
+                    })}
+                  </div>
+                </div>
+              </div>
+            )}
+          </div>
+        </nav>
+
+        {/* 3. RIGHT CONTROLS (Search, Privacy, Favorites, Theme & Mobile Hamburger) */}
+        <div className="flex items-center gap-2 sm:gap-3 shrink-0">
+          {/* Quick Search Shortcut */}
           <button
             onClick={() => {
               setActiveDropdown(null);
               onSearchFocus();
             }}
             type="button"
-            className="w-full flex items-center justify-between px-3.5 py-2 text-sm text-neutral-500 dark:text-neutral-400 bg-neutral-100/90 dark:bg-neutral-800/90 hover:bg-neutral-200/70 dark:hover:bg-neutral-700/60 border border-neutral-200 dark:border-neutral-700 rounded-xl transition-colors text-left cursor-pointer"
+            className="flex items-center gap-2 px-3 py-1.5 text-xs text-neutral-500 dark:text-neutral-400 bg-neutral-100/90 dark:bg-neutral-800/90 hover:bg-neutral-200/70 dark:hover:bg-neutral-700/60 border border-neutral-200 dark:border-neutral-700 rounded-xl transition-colors text-left cursor-pointer"
+            title="Search PDF tools (Press /)"
           >
-            <span className="flex items-center gap-2">
-              <Search className="w-4 h-4 text-neutral-400 dark:text-neutral-500" />
-              <span>Search across 100+ PDF tools...</span>
-            </span>
-            <kbd className="hidden lg:inline-block px-2 py-0.5 text-[10px] font-semibold text-neutral-500 dark:text-neutral-400 bg-white dark:bg-neutral-700 rounded border border-neutral-200 dark:border-neutral-600 shadow-2xs">
+            <Search className="w-3.5 h-3.5 text-neutral-400" />
+            <span className="hidden sm:inline">Search...</span>
+            <kbd className="hidden md:inline-block px-1.5 py-0.2 text-[9px] font-semibold text-neutral-500 dark:text-neutral-400 bg-white dark:bg-neutral-700 rounded border border-neutral-200 dark:border-neutral-600 shadow-2xs">
               /
             </kbd>
           </button>
-        </div>
 
-        {/* Action badges & Links */}
-        <div className="flex items-center gap-2 sm:gap-2.5">
-          {/* Pro Free Indicator */}
-          <span className="hidden xl:inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg bg-emerald-50 dark:bg-emerald-950/40 text-emerald-700 dark:text-emerald-400 border border-emerald-200 dark:border-emerald-800/60 text-xs font-bold shadow-2xs">
-            <Sparkles className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400" />
-            <span>Pro Tools Free</span>
-          </span>
-
-          {/* Privacy badge */}
+          {/* Privacy Badge */}
           <div className="relative">
             <button
               onClick={() => setShowPrivacyNotice(!showPrivacyNotice)}
@@ -261,32 +615,32 @@ export const Header: React.FC<HeaderProps> = ({
               title="100% Client-Side Privacy"
             >
               <Shield className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400" />
-              <span className="hidden sm:inline">100% Client-Side</span>
+              <span className="hidden xl:inline">100% Client-Side</span>
             </button>
 
             {showPrivacyNotice && (
-              <div className="absolute right-0 mt-2 w-72 p-3.5 bg-white dark:bg-neutral-900 rounded-xl shadow-xl border border-neutral-200 dark:border-neutral-700 text-xs text-neutral-700 dark:text-neutral-300 z-50 animate-in fade-in slide-in-from-top-2">
+              <div className="absolute right-0 mt-2 w-72 p-3.5 bg-white dark:bg-neutral-900 rounded-xl shadow-xl border border-neutral-200 dark:border-neutral-700 text-xs text-neutral-700 dark:text-neutral-300 z-50 animate-in fade-in slide-in-from-top-1">
                 <div className="flex items-center gap-2 font-bold text-neutral-900 dark:text-white mb-1.5">
                   <Shield className="w-4 h-4 text-emerald-600 dark:text-emerald-400" />
-                  100% Private & Secure Processing
+                  100% Private & In-Browser
                 </div>
-                <p className="text-neutral-600 dark:text-neutral-300 leading-relaxed">
-                  All PDF tools run <strong>directly in your browser</strong> using WebAssembly & HTML5 Canvas. Your files are <em>never</em> uploaded to any remote server, making this 100% safe for sensitive contracts and personal records.
+                <p className="text-neutral-600 dark:text-neutral-300 leading-relaxed text-[11px]">
+                  All tools run strictly on your device using WebAssembly and canvas memory. Files are never transmitted over the network.
                 </p>
                 <div className="mt-2.5 pt-2 border-t border-neutral-100 dark:border-neutral-800 flex justify-between items-center text-[11px]">
-                  <span className="text-emerald-600 dark:text-emerald-400 font-semibold">Zero Server Footprint</span>
+                  <span className="text-emerald-600 dark:text-emerald-400 font-semibold">Zero Uploads</span>
                   <button
                     onClick={() => setShowPrivacyNotice(false)}
                     className="text-neutral-400 hover:text-neutral-700 dark:hover:text-neutral-200 font-medium cursor-pointer"
                   >
-                    Got it
+                    Close
                   </button>
                 </div>
               </div>
             )}
           </div>
 
-          {/* Starred Tools */}
+          {/* Starred Favorites */}
           <button
             onClick={() => {
               setActiveDropdown(null);
@@ -305,209 +659,28 @@ export const Header: React.FC<HeaderProps> = ({
             )}
           </button>
 
-          {/* Light / Dark Theme Selector */}
-          <ThemeToggle
-            theme={theme}
-            setTheme={setTheme}
-            resolvedTheme={resolvedTheme}
-          />
+          {/* Theme Selector */}
+          <ThemeToggle theme={theme} setTheme={setTheme} resolvedTheme={resolvedTheme} />
 
-          {/* Mobile Menu Toggle Button (Hamburger) */}
+          {/* Mobile Hamburger Button */}
           <button
             type="button"
             onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
             className="lg:hidden p-2 rounded-xl text-neutral-700 dark:text-neutral-200 hover:bg-neutral-100 dark:hover:bg-neutral-800 border border-neutral-200 dark:border-neutral-700 transition-colors cursor-pointer"
-            aria-label="Toggle Main Menu"
+            aria-label="Toggle Navigation Menu"
           >
             {isMobileMenuOpen ? <X className="w-5 h-5" /> : <Menu className="w-5 h-5" />}
           </button>
         </div>
       </div>
 
-      {/* 2. MAIN MENU BAR (DESKTOP) */}
-      <nav
-        aria-label="Main Navigation Menu Bar"
-        className="hidden lg:block border-t border-neutral-200/70 dark:border-neutral-800 bg-neutral-50/70 dark:bg-neutral-900/60 px-4 sm:px-6 lg:px-8 relative"
-      >
-        <div className="max-w-7xl mx-auto flex items-center justify-between">
-          <ul className="flex items-center gap-1 py-1.5 overflow-x-auto no-scrollbar">
-            {/* All Tools Direct Tab */}
-            <li>
-              <button
-                type="button"
-                onClick={() => handleCategoryNav('all')}
-                className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer ${
-                  activeCategoryId === 'all' && !activeDropdown
-                    ? 'bg-red-600 text-white shadow-2xs'
-                    : 'text-neutral-700 dark:text-neutral-300 hover:bg-neutral-200/60 dark:hover:bg-neutral-800'
-                }`}
-              >
-                <LayoutGrid className="w-3.5 h-3.5" />
-                <span>All Tools</span>
-              </button>
-            </li>
-
-            {/* Menu Bar Category Dropdown Items */}
-            {MENU_CATEGORIES.map((cat) => {
-              const isOpen = activeDropdown === cat.id;
-              const isActive = activeCategoryId === cat.id;
-              const tools = getCategoryTools(cat);
-              const IconComp = cat.icon;
-
-              return (
-                <li key={cat.id} className="relative">
-                  <button
-                    type="button"
-                    onClick={() => setActiveDropdown(isOpen ? null : cat.id)}
-                    onMouseEnter={() => {
-                      if (activeDropdown !== null) {
-                        setActiveDropdown(cat.id);
-                      }
-                    }}
-                    className={`flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-xs font-semibold transition-all cursor-pointer whitespace-nowrap ${
-                      isOpen
-                        ? 'bg-neutral-200 dark:bg-neutral-800 text-neutral-900 dark:text-white'
-                        : isActive
-                        ? 'text-red-600 dark:text-red-400 font-bold bg-red-50 dark:bg-red-950/40'
-                        : 'text-neutral-700 dark:text-neutral-300 hover:bg-neutral-200/60 dark:hover:bg-neutral-800'
-                    }`}
-                  >
-                    <IconComp className={`w-3.5 h-3.5 ${cat.colorClass}`} />
-                    <span>{cat.shortLabel}</span>
-                    {cat.badge && (
-                      <span className="text-[9px] font-extrabold uppercase px-1 py-0.2 rounded bg-amber-500 text-white">
-                        {cat.badge}
-                      </span>
-                    )}
-                    <ChevronDown
-                      className={`w-3 h-3 text-neutral-400 transition-transform duration-200 ${
-                        isOpen ? 'rotate-180 text-neutral-700 dark:text-neutral-200' : ''
-                      }`}
-                    />
-                  </button>
-
-                  {/* Dropdown Card */}
-                  {isOpen && (
-                    <div
-                      onMouseLeave={() => setActiveDropdown(null)}
-                      className="absolute top-full left-0 mt-1 w-80 sm:w-96 p-3 bg-white dark:bg-neutral-900 rounded-2xl shadow-2xl border border-neutral-200 dark:border-neutral-700 z-50 animate-in fade-in slide-in-from-top-2 duration-150"
-                    >
-                      {/* Dropdown Header */}
-                      <div className="flex items-center justify-between pb-2 mb-2 border-b border-neutral-100 dark:border-neutral-800">
-                        <div className="flex items-center gap-2">
-                          <div className="w-6 h-6 rounded-md bg-neutral-100 dark:bg-neutral-800 flex items-center justify-center">
-                            <IconComp className={`w-3.5 h-3.5 ${cat.colorClass}`} />
-                          </div>
-                          <div>
-                            <span className="text-xs font-bold text-neutral-900 dark:text-white block leading-tight">
-                              {cat.name}
-                            </span>
-                            <span className="text-[10px] text-neutral-500">
-                              {tools.length} popular utilities
-                            </span>
-                          </div>
-                        </div>
-
-                        <button
-                          type="button"
-                          onClick={() => handleCategoryNav(cat.id)}
-                          className="text-[11px] font-bold text-red-600 dark:text-red-400 hover:underline flex items-center gap-1 cursor-pointer"
-                        >
-                          <span>Explore all</span>
-                          <ArrowRight className="w-3 h-3" />
-                        </button>
-                      </div>
-
-                      {/* Tool Items Grid */}
-                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-1 max-h-80 overflow-y-auto pr-0.5">
-                        {tools.map((tool) => {
-                          const isCurrent = activeToolId === tool.id;
-                          return (
-                            <button
-                              key={tool.id}
-                              type="button"
-                              onClick={() => handleToolClick(tool)}
-                              className={`p-2 rounded-xl text-left transition-all flex items-start gap-2.5 cursor-pointer group ${
-                                isCurrent
-                                  ? 'bg-red-50 dark:bg-red-950/40 border border-red-200 dark:border-red-800/60'
-                                  : 'hover:bg-neutral-100 dark:hover:bg-neutral-800/80'
-                              }`}
-                            >
-                              <div className="w-7 h-7 rounded-lg bg-neutral-100 dark:bg-neutral-800 flex items-center justify-center shrink-0 group-hover:scale-105 transition-transform text-neutral-700 dark:text-neutral-300">
-                                <DynamicIcon name={tool.iconName} className="w-3.5 h-3.5" />
-                              </div>
-                              <div className="min-w-0 flex-1">
-                                <div className="flex items-center gap-1">
-                                  <span className="text-xs font-bold text-neutral-900 dark:text-white truncate block">
-                                    {tool.name}
-                                  </span>
-                                  {tool.badge && (
-                                    <span className="text-[8px] font-bold uppercase px-1 py-0.2 rounded bg-neutral-200 dark:bg-neutral-700 text-neutral-600 dark:text-neutral-300 shrink-0">
-                                      {tool.badge}
-                                    </span>
-                                  )}
-                                </div>
-                                <p className="text-[10px] text-neutral-500 dark:text-neutral-400 line-clamp-1">
-                                  {tool.shortDesc}
-                                </p>
-                              </div>
-                            </button>
-                          );
-                        })}
-                      </div>
-
-                      {/* Bottom action bar */}
-                      <div className="mt-2.5 pt-2 border-t border-neutral-100 dark:border-neutral-800 flex items-center justify-between text-[11px]">
-                        <span className="text-neutral-400 text-[10px]">100% In-Browser & Private</span>
-                        <button
-                          type="button"
-                          onClick={() => handleCategoryNav(cat.id)}
-                          className="text-neutral-700 dark:text-neutral-300 font-semibold hover:text-red-600 dark:hover:text-red-400 cursor-pointer"
-                        >
-                          View category page →
-                        </button>
-                      </div>
-                    </div>
-                  )}
-                </li>
-              );
-            })}
-          </ul>
-
-          {/* Quick Menu Right-hand Shortcut */}
-          <div className="hidden xl:flex items-center gap-2 text-[11px] text-neutral-500 dark:text-neutral-400 pl-2">
-            <span className="font-semibold text-neutral-700 dark:text-neutral-300">Quick:</span>
-            {[
-              { id: 'merge-pdf', name: 'Merge' },
-              { id: 'split-pdf', name: 'Split' },
-              { id: 'compress-pdf', name: 'Compress' },
-              { id: 'digital-signature', name: 'Sign' },
-              { id: 'dark-mode-pdf', name: 'Dark Mode' },
-            ].map((quick) => {
-              const tool = TOOLS_DATA.find((t) => t.id === quick.id);
-              if (!tool) return null;
-              return (
-                <button
-                  key={quick.id}
-                  type="button"
-                  onClick={() => handleToolClick(tool)}
-                  className="px-2 py-0.5 rounded-md hover:bg-neutral-200/70 dark:hover:bg-neutral-800 text-neutral-600 dark:text-neutral-400 hover:text-neutral-900 dark:hover:text-white transition-colors cursor-pointer"
-                >
-                  {quick.name}
-                </button>
-              );
-            })}
-          </div>
-        </div>
-      </nav>
-
-      {/* 3. RESPONSIVE MOBILE MENU BAR (DRAWER / PANEL) */}
+      {/* 4. MOBILE / TABLET SLIDE-DOWN DRAWER (< lg) */}
       {isMobileMenuOpen && (
-        <div className="lg:hidden border-t border-neutral-200 dark:border-neutral-800 bg-white dark:bg-neutral-900 max-h-[80vh] overflow-y-auto shadow-2xl animate-in slide-in-from-top-2">
+        <div className="lg:hidden border-t border-neutral-200 dark:border-neutral-800 bg-white dark:bg-neutral-900 max-h-[82vh] overflow-y-auto shadow-2xl animate-in slide-in-from-top-2">
           <div className="p-4 space-y-4">
             {/* Search Input for Mobile */}
             <div className="relative">
-              <Search className="w-4 h-4 text-neutral-400 absolute left-3 top-3" />
+              <Search className="w-4 h-4 text-neutral-400 absolute left-3 top-2.5" />
               <input
                 type="text"
                 placeholder="Search 100+ PDF tools..."
@@ -520,7 +693,7 @@ export const Header: React.FC<HeaderProps> = ({
               />
             </div>
 
-            {/* Quick Favorites & All Tools Action Buttons */}
+            {/* Quick Action Grid */}
             <div className="grid grid-cols-2 gap-2 text-xs">
               <button
                 type="button"
@@ -547,127 +720,63 @@ export const Header: React.FC<HeaderProps> = ({
               </button>
             </div>
 
-            {/* Popular Fast Shortcuts */}
-            <div>
-              <div className="text-[10px] uppercase font-bold text-neutral-400 tracking-wider mb-2">
-                Popular Tools
-              </div>
-              <div className="flex flex-wrap gap-1.5">
-                {[
-                  { id: 'merge-pdf', name: 'Merge PDF' },
-                  { id: 'split-pdf', name: 'Split PDF' },
-                  { id: 'compress-pdf', name: 'Compress' },
-                  { id: 'digital-signature', name: 'Sign' },
-                  { id: 'dark-mode-pdf', name: 'Dark Mode' },
-                  { id: 'image-to-pdf', name: 'JPG to PDF' },
-                  { id: 'pdf-to-jpg', name: 'PDF to JPG' },
-                  { id: 'flashcard-generator', name: 'Flashcards' },
-                ].map((item) => {
-                  const tool = TOOLS_DATA.find((t) => t.id === item.id);
-                  if (!tool) return null;
-                  return (
+            {/* Mobile Category Accordions */}
+            <div className="space-y-1.5">
+              {[
+                { id: 'organize', name: 'Merge & Split', icon: Layers, tools: organizeTools },
+                { id: 'optimize', name: 'Compress & Clean', icon: Zap, tools: optimizeTools },
+                { id: 'convert-to-pdf', name: 'Convert to PDF', icon: FileInput, tools: convertToTools },
+                { id: 'convert-from-pdf', name: 'Convert from PDF', icon: FileOutput, tools: convertFromTools },
+                { id: 'edit-annotate', name: 'Edit & Sign', icon: PenTool, tools: editSignTools },
+              ].map((group) => {
+                const isExpanded = expandedMobileCategory === group.id;
+                const GroupIcon = group.icon;
+
+                return (
+                  <div
+                    key={group.id}
+                    className="border border-neutral-200 dark:border-neutral-800 rounded-xl overflow-hidden"
+                  >
                     <button
-                      key={item.id}
                       type="button"
-                      onClick={() => handleToolClick(tool)}
-                      className="px-2.5 py-1 rounded-lg bg-neutral-100 dark:bg-neutral-800 text-neutral-700 dark:text-neutral-300 hover:bg-neutral-200 dark:hover:bg-neutral-700 text-xs font-semibold cursor-pointer"
+                      onClick={() => setExpandedMobileCategory(isExpanded ? null : group.id)}
+                      className="w-full px-3.5 py-2.5 bg-neutral-50 dark:bg-neutral-800/60 flex items-center justify-between text-left text-xs font-bold text-neutral-800 dark:text-neutral-200 cursor-pointer"
                     >
-                      {item.name}
+                      <div className="flex items-center gap-2">
+                        <GroupIcon className="w-4 h-4 text-red-600 dark:text-red-400" />
+                        <span>{group.name}</span>
+                      </div>
+                      <ChevronDown
+                        className={`w-3.5 h-3.5 text-neutral-400 transition-transform ${
+                          isExpanded ? 'rotate-180' : ''
+                        }`}
+                      />
                     </button>
-                  );
-                })}
-              </div>
-            </div>
 
-            {/* Accordion Categories Menu */}
-            <div>
-              <div className="text-[10px] uppercase font-bold text-neutral-400 tracking-wider mb-2">
-                Browse by Category
-              </div>
-              <div className="space-y-1.5">
-                {MENU_CATEGORIES.map((cat) => {
-                  const isExpanded = expandedMobileCategory === cat.id;
-                  const tools = getCategoryTools(cat);
-                  const IconComp = cat.icon;
-
-                  return (
-                    <div
-                      key={cat.id}
-                      className="border border-neutral-200 dark:border-neutral-800 rounded-xl overflow-hidden"
-                    >
-                      <button
-                        type="button"
-                        onClick={() =>
-                          setExpandedMobileCategory(isExpanded ? null : cat.id)
-                        }
-                        className="w-full px-3.5 py-2.5 bg-neutral-50 dark:bg-neutral-800/60 flex items-center justify-between text-left text-xs font-bold text-neutral-800 dark:text-neutral-200 cursor-pointer"
-                      >
-                        <div className="flex items-center gap-2">
-                          <IconComp className={`w-4 h-4 ${cat.colorClass}`} />
-                          <span>{cat.name}</span>
-                          {cat.badge && (
-                            <span className="text-[8px] uppercase font-bold px-1 rounded bg-amber-500 text-white">
-                              {cat.badge}
+                    {isExpanded && (
+                      <div className="p-2 space-y-1 bg-white dark:bg-neutral-900 border-t border-neutral-200 dark:border-neutral-800">
+                        {group.tools.map((tool) => (
+                          <button
+                            key={tool.id}
+                            type="button"
+                            onClick={() => handleToolClick(tool)}
+                            className="w-full p-2 rounded-lg flex items-center justify-between text-left hover:bg-neutral-100 dark:hover:bg-neutral-800 text-xs cursor-pointer group"
+                          >
+                            <span className="font-semibold text-neutral-800 dark:text-neutral-200 truncate">
+                              {tool.name}
                             </span>
-                          )}
-                        </div>
-                        <ChevronDown
-                          className={`w-3.5 h-3.5 text-neutral-400 transition-transform ${
-                            isExpanded ? 'rotate-180' : ''
-                          }`}
-                        />
-                      </button>
-
-                      {isExpanded && (
-                        <div className="p-2 space-y-1 bg-white dark:bg-neutral-900 border-t border-neutral-200 dark:border-neutral-800">
-                          {tools.map((tool) => (
-                            <button
-                              key={tool.id}
-                              type="button"
-                              onClick={() => handleToolClick(tool)}
-                              className="w-full p-2 rounded-lg flex items-center justify-between text-left hover:bg-neutral-100 dark:hover:bg-neutral-800 text-xs cursor-pointer group"
-                            >
-                              <div className="flex items-center gap-2 min-w-0">
-                                <DynamicIcon
-                                  name={tool.iconName}
-                                  className="w-3.5 h-3.5 text-neutral-500 shrink-0"
-                                />
-                                <span className="font-semibold text-neutral-800 dark:text-neutral-200 truncate">
-                                  {tool.name}
-                                </span>
-                              </div>
-                              {tool.badge && (
-                                <span className="text-[8px] px-1 py-0.2 rounded bg-neutral-100 dark:bg-neutral-800 text-neutral-500 shrink-0">
-                                  {tool.badge}
-                                </span>
-                              )}
-                            </button>
-                          ))}
-
-                          <div className="pt-2 border-t border-neutral-100 dark:border-neutral-800">
-                            <button
-                              type="button"
-                              onClick={() => handleCategoryNav(cat.id)}
-                              className="w-full py-1.5 text-center text-xs font-bold text-red-600 dark:text-red-400 hover:underline cursor-pointer"
-                            >
-                              View all {cat.name} tools →
-                            </button>
-                          </div>
-                        </div>
-                      )}
-                    </div>
-                  );
-                })}
-              </div>
-            </div>
-
-            {/* Bottom Info Banner */}
-            <div className="p-3 rounded-xl bg-neutral-100 dark:bg-neutral-800/80 flex items-center justify-between text-xs text-neutral-600 dark:text-neutral-400">
-              <div className="flex items-center gap-1.5">
-                <Shield className="w-4 h-4 text-emerald-600 dark:text-emerald-400" />
-                <span>Zero Server Uploads (100% Private)</span>
-              </div>
-              <span className="font-bold text-neutral-800 dark:text-neutral-200">Free Forever</span>
+                            {tool.badge && (
+                              <span className="text-[8px] px-1.5 py-0.2 rounded bg-neutral-100 dark:bg-neutral-800 text-neutral-500 shrink-0">
+                                {tool.badge}
+                              </span>
+                            )}
+                          </button>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                );
+              })}
             </div>
           </div>
         </div>
