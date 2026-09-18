@@ -2,6 +2,7 @@ export type ToolCategory =
   | 'all'
   | 'trending'
   | 'organize'
+  | 'convert'
   | 'convert-to-pdf'
   | 'convert-from-pdf'
   | 'optimize'

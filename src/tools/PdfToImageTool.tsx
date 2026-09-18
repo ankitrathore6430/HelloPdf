@@ -1,6 +1,7 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { ToolItem } from '../types';
-import { convertPDFToImages, textToPDF } from '../services/pdfEngine';
+import { convertPDFToImages, ConvertedImageResult } from '../services/pdfConvert';
+import { textToPDF } from '../services/pdfEngine';
 import { downloadBlob, formatFileSize } from './shared/ToolWorkspaceHelper';
 import JSZip from 'jszip';
 import {
@@ -21,32 +22,50 @@ interface PdfToImageToolProps {
 }
 
 export const PdfToImageTool: React.FC<PdfToImageToolProps> = ({ tool }) => {
-  const defaultFormat = tool.id === 'pdf-to-png' ? 'image/png' : 'image/jpeg';
+  const getInitialFormat = (): 'image/jpeg' | 'image/png' | 'image/webp' => {
+    if (tool.id === 'pdf-to-png' || tool.id === 'extract-images') return 'image/png';
+    if (tool.id === 'pdf-to-webp') return 'image/webp';
+    return 'image/jpeg';
+  };
+
   const [file, setFile] = useState<File | null>(null);
-  const [format, setFormat] = useState<'image/jpeg' | 'image/png'>(defaultFormat);
-  const [quality, setQuality] = useState(0.92);
-  const [scale, setScale] = useState(1.5);
+  const [format, setFormat] = useState<'image/jpeg' | 'image/png' | 'image/webp'>(getInitialFormat());
+  const [grayscale, setGrayscale] = useState<boolean>(tool.id === 'pdf-to-greyscale-images');
+  const [scale, setScale] = useState<number>(1.5);
   const [isProcessing, setIsProcessing] = useState(false);
-  const [renderedImages, setRenderedImages] = useState<{ pageIndex: number; dataUrl: string; width: number; height: number }[]>([]);
+  const [renderedImages, setRenderedImages] = useState<ConvertedImageResult[]>([]);
+  const [zipBlob, setZipBlob] = useState<Blob | null>(null);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [isDragging, setIsDragging] = useState(false);
+
+  useEffect(() => {
+    setFormat(getInitialFormat());
+    setGrayscale(tool.id === 'pdf-to-greyscale-images');
+  }, [tool.id]);
 
   const handleFileChange = (selected: FileList | null) => {
     if (!selected || selected.length === 0) return;
     setFile(selected[0]);
     setRenderedImages([]);
+    setZipBlob(null);
     setErrorMessage(null);
   };
 
   const handleUseDemo = async () => {
     try {
       const doc = await textToPDF(
-        'HELLO PDF - HIGH RESOLUTION DEMO DOCUMENT\n\nThis sample page demonstrates client-side PDF rendering.\nEach page of your PDF is decoded and rasterized onto high-definition HTML5 canvas context in full color.\n\nYou can export single pages as crisp PNG/JPEG images or batch download all pages inside a zipped archive.',
-        'High Res Sample Page'
+        'HELLO PDF - HIGH DEFINITION CONVERSION DEMO\n\n' +
+          'This sample page tests real-time, browser-native PDF rasterization.\n' +
+          'Our high-fidelity engine decodes typography, layouts, and vector graphics directly into crisp pixels.\n\n' +
+          '• Supports Lossless PNG, Compressed JPEG, and Modern WebP\n' +
+          '• Optional Grayscale / B&W conversion for archival prints\n' +
+          '• Download individual pages or package everything into a ZIP archive.',
+        'Convert PDF Demo'
       );
       const demoFile = new File([doc as any], 'HelloPDF_Sample_Doc.pdf', { type: 'application/pdf' });
       setFile(demoFile);
       setRenderedImages([]);
+      setZipBlob(null);
       setErrorMessage(null);
     } catch (err: any) {
       setErrorMessage('Could not generate sample document: ' + err.message);
@@ -63,15 +82,21 @@ export const PdfToImageTool: React.FC<PdfToImageToolProps> = ({ tool }) => {
     setErrorMessage(null);
 
     try {
-      const result = await convertPDFToImages(file, format === 'image/png' ? 'png' : 'jpeg');
-      setRenderedImages(
-        result.map((item) => ({
-          pageIndex: item.pageNumber - 1,
-          dataUrl: item.dataUrl,
-          width: 800,
-          height: 1100,
-        }))
-      );
+      const result = await convertPDFToImages(file, {
+        format,
+        quality: 0.92,
+        grayscale,
+        scale,
+      });
+
+      if (!result.images || result.images.length === 0) {
+        throw new Error('No pages could be extracted from this PDF.');
+      }
+
+      setRenderedImages(result.images);
+      if (result.zipBlob) {
+        setZipBlob(result.zipBlob);
+      }
     } catch (err: any) {
       setErrorMessage(err.message || 'Failed to render PDF pages into images.');
     } finally {
@@ -79,26 +104,27 @@ export const PdfToImageTool: React.FC<PdfToImageToolProps> = ({ tool }) => {
     }
   };
 
-  const handleDownloadSingle = (dataUrl: string, pageNum: number) => {
-    const ext = format === 'image/png' ? 'png' : 'jpg';
-    const link = document.createElement('a');
-    link.href = dataUrl;
-    link.download = `${file?.name.replace(/\.pdf$/i, '') || 'page'}_Page_${pageNum}.${ext}`;
-    link.click();
+  const handleDownloadSingle = (image: ConvertedImageResult) => {
+    downloadBlob(image.blob, image.filename);
   };
 
   const handleDownloadAllZip = async () => {
     if (renderedImages.length === 0) return;
-    const zip = new JSZip();
-    const ext = format === 'image/png' ? 'png' : 'jpg';
 
-    for (const img of renderedImages) {
-      const base64Data = img.dataUrl.split(',')[1];
-      zip.file(`Page_${img.pageIndex + 1}.${ext}`, base64Data, { base64: true });
+    if (zipBlob) {
+      downloadBlob(zipBlob, `${file?.name.replace(/\.pdf$/i, '') || 'HelloPDF'}_Images.zip`);
+      return;
     }
 
-    const zipBlob = await zip.generateAsync({ type: 'blob' });
-    downloadBlob(zipBlob, `${file?.name.replace(/\.pdf$/i, '') || 'HelloPDF'}_All_Images.zip`);
+    const zip = new JSZip();
+    const ext = format === 'image/png' ? 'png' : format === 'image/webp' ? 'webp' : 'jpg';
+
+    for (const img of renderedImages) {
+      zip.file(img.filename || `Page_${img.pageIndex + 1}.${ext}`, img.blob);
+    }
+
+    const generatedZip = await zip.generateAsync({ type: 'blob' });
+    downloadBlob(generatedZip, `${file?.name.replace(/\.pdf$/i, '') || 'HelloPDF'}_Images.zip`);
   };
 
   return (
@@ -141,7 +167,7 @@ export const PdfToImageTool: React.FC<PdfToImageToolProps> = ({ tool }) => {
           >
             <input
               type="file"
-              accept=".pdf"
+              accept=".pdf,application/pdf"
               onChange={(e) => handleFileChange(e.target.files)}
               className="absolute inset-0 opacity-0 cursor-pointer w-full h-full"
             />
@@ -154,7 +180,7 @@ export const PdfToImageTool: React.FC<PdfToImageToolProps> = ({ tool }) => {
                 Drop your PDF file here or click to browse
               </p>
               <p className="text-xs text-neutral-500 dark:text-neutral-400 mt-1">
-                Convert each PDF page into high-definition standalone JPG or PNG images
+                Extract and render every page as high-resolution JPG, PNG, or WebP images
               </p>
             </div>
           </div>
@@ -177,8 +203,9 @@ export const PdfToImageTool: React.FC<PdfToImageToolProps> = ({ tool }) => {
               onClick={() => {
                 setFile(null);
                 setRenderedImages([]);
+                setZipBlob(null);
               }}
-              className="p-1.5 hover:bg-red-100 dark:hover:bg-red-950/60 rounded-lg text-red-600 dark:text-red-400 font-semibold"
+              className="p-1.5 hover:bg-red-100 dark:hover:bg-red-950/60 rounded-lg text-red-600 dark:text-red-400 font-semibold transition-colors"
               title="Change document"
             >
               <Trash2 className="w-4 h-4" />
@@ -189,48 +216,78 @@ export const PdfToImageTool: React.FC<PdfToImageToolProps> = ({ tool }) => {
 
       {/* Image Format Settings */}
       {file && (
-        <div className="p-4 rounded-2xl bg-neutral-50 dark:bg-neutral-800/60 border border-neutral-200 dark:border-neutral-700/80 space-y-3 text-xs">
+        <div className="p-4 rounded-2xl bg-neutral-50 dark:bg-neutral-800/60 border border-neutral-200 dark:border-neutral-700/80 space-y-4 text-xs">
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
             <div>
-              <label className="font-bold text-neutral-800 dark:text-neutral-200 block mb-1">Image Format:</label>
-              <div className="grid grid-cols-2 gap-2">
+              <label className="font-bold text-neutral-800 dark:text-neutral-200 block mb-1.5">
+                Output Image Format:
+              </label>
+              <div className="grid grid-cols-3 gap-2">
                 <button
                   type="button"
                   onClick={() => setFormat('image/jpeg')}
-                  className={`py-2 px-3 rounded-lg font-bold border transition-colors ${
+                  className={`py-2 px-2.5 rounded-lg font-bold border text-center transition-colors ${
                     format === 'image/jpeg'
-                      ? 'bg-sky-600 text-white border-sky-600'
+                      ? 'bg-sky-600 text-white border-sky-600 shadow-xs'
                       : 'bg-white dark:bg-neutral-800 text-neutral-700 dark:text-neutral-200 border-neutral-300 dark:border-neutral-700'
                   }`}
                 >
-                  JPEG (Compact)
+                  JPG
                 </button>
                 <button
                   type="button"
                   onClick={() => setFormat('image/png')}
-                  className={`py-2 px-3 rounded-lg font-bold border transition-colors ${
+                  className={`py-2 px-2.5 rounded-lg font-bold border text-center transition-colors ${
                     format === 'image/png'
-                      ? 'bg-sky-600 text-white border-sky-600'
+                      ? 'bg-sky-600 text-white border-sky-600 shadow-xs'
                       : 'bg-white dark:bg-neutral-800 text-neutral-700 dark:text-neutral-200 border-neutral-300 dark:border-neutral-700'
                   }`}
                 >
-                  PNG (Lossless)
+                  PNG
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setFormat('image/webp')}
+                  className={`py-2 px-2.5 rounded-lg font-bold border text-center transition-colors ${
+                    format === 'image/webp'
+                      ? 'bg-sky-600 text-white border-sky-600 shadow-xs'
+                      : 'bg-white dark:bg-neutral-800 text-neutral-700 dark:text-neutral-200 border-neutral-300 dark:border-neutral-700'
+                  }`}
+                >
+                  WebP
                 </button>
               </div>
             </div>
 
             <div>
-              <label className="font-bold text-neutral-800 dark:text-neutral-200 block mb-1">Resolution / DPI:</label>
+              <label className="font-bold text-neutral-800 dark:text-neutral-200 block mb-1.5">
+                Resolution / DPI Quality:
+              </label>
               <select
                 value={scale}
                 onChange={(e) => setScale(parseFloat(e.target.value))}
                 className="w-full px-3 py-2 rounded-lg bg-white dark:bg-neutral-800 border border-neutral-300 dark:border-neutral-700 text-neutral-800 dark:text-neutral-200 font-medium"
               >
-                <option value="1.0">Standard Web (72 - 100 DPI)</option>
-                <option value="1.5">High Definition (150 DPI - Recommended)</option>
-                <option value="2.0">Ultra High Definition (300 DPI Print Quality)</option>
+                <option value="1.0">Standard Web (72 - 100 DPI - Fast)</option>
+                <option value="1.5">High Definition (150 DPI - Balanced)</option>
+                <option value="2.0">Ultra High Definition (300 DPI - Print Quality)</option>
               </select>
             </div>
+          </div>
+
+          <div className="pt-2 border-t border-neutral-200 dark:border-neutral-700/60 flex items-center justify-between">
+            <label className="flex items-center gap-2 cursor-pointer text-neutral-700 dark:text-neutral-300 font-medium">
+              <input
+                type="checkbox"
+                checked={grayscale}
+                onChange={(e) => setGrayscale(e.target.checked)}
+                className="rounded accent-sky-600 w-4 h-4"
+              />
+              <span>Convert to Grayscale (Black & White)</span>
+            </label>
+            <span className="text-[11px] text-neutral-400 dark:text-neutral-500">
+              Ideal for scanned documents, contracts, and fax receipts
+            </span>
           </div>
         </div>
       )}
@@ -256,21 +313,30 @@ export const PdfToImageTool: React.FC<PdfToImageToolProps> = ({ tool }) => {
             {renderedImages.map((img) => (
               <div
                 key={img.pageIndex}
-                className="rounded-2xl overflow-hidden border border-neutral-200 dark:border-neutral-700 bg-neutral-100 dark:bg-neutral-800 p-2 space-y-2 shadow-2xs"
+                className="rounded-2xl overflow-hidden border border-neutral-200 dark:border-neutral-700 bg-neutral-100 dark:bg-neutral-800 p-2.5 space-y-2.5 shadow-2xs"
               >
                 <div className="relative aspect-[3/4] rounded-xl overflow-hidden bg-white dark:bg-neutral-900 border border-neutral-200 dark:border-neutral-700 flex items-center justify-center">
-                  <img src={img.dataUrl} alt={`Page ${img.pageIndex + 1}`} className="w-full h-full object-contain" />
+                  <img
+                    src={img.dataUrl}
+                    alt={`Page ${img.pageIndex + 1}`}
+                    className="w-full h-full object-contain"
+                  />
                 </div>
                 <div className="flex items-center justify-between px-1">
-                  <span className="text-xs font-bold text-neutral-700 dark:text-neutral-300">
-                    Page {img.pageIndex + 1}
-                  </span>
+                  <div>
+                    <span className="text-xs font-bold text-neutral-800 dark:text-neutral-200 block">
+                      Page {img.pageIndex + 1}
+                    </span>
+                    <span className="text-[10px] text-neutral-400 dark:text-neutral-500">
+                      {formatFileSize(img.blob.size)}
+                    </span>
+                  </div>
                   <button
                     type="button"
-                    onClick={() => handleDownloadSingle(img.dataUrl, img.pageIndex + 1)}
-                    className="inline-flex items-center gap-1 px-2 py-1 rounded bg-white dark:bg-neutral-700 border border-neutral-200 dark:border-neutral-600 text-xs font-medium text-neutral-700 dark:text-neutral-200 hover:bg-neutral-50"
+                    onClick={() => handleDownloadSingle(img)}
+                    className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-lg bg-white dark:bg-neutral-700 border border-neutral-200 dark:border-neutral-600 text-xs font-semibold text-neutral-700 dark:text-neutral-200 hover:bg-neutral-50 hover:text-sky-600 transition-colors shadow-2xs"
                   >
-                    <Download className="w-3 h-3" />
+                    <Download className="w-3.5 h-3.5" />
                     <span>Save</span>
                   </button>
                 </div>
@@ -304,12 +370,14 @@ export const PdfToImageTool: React.FC<PdfToImageToolProps> = ({ tool }) => {
             {isProcessing ? (
               <>
                 <RefreshCw className="w-4 h-4 animate-spin" />
-                <span>Extracting Images...</span>
+                <span>Extracting Pages...</span>
               </>
             ) : (
               <>
                 <Image className="w-4 h-4" />
-                <span>Convert PDF to Images</span>
+                <span>
+                  Convert PDF to {format === 'image/jpeg' ? 'JPG' : format === 'image/png' ? 'PNG' : 'WebP'}
+                </span>
               </>
             )}
           </button>

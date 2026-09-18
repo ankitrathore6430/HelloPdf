@@ -252,6 +252,21 @@ export const ToolPageRouter: React.FC<ToolPageRouterProps> = ({
       return <InspectRepairTool tool={tool} />;
     }
 
+    // 14. Fallback by Category for Convert tools
+    if (tool.category === 'convert-to-pdf') {
+      if (['image-to-pdf', 'png-to-pdf', 'webp-to-pdf', 'batch-image-to-pdf', 'jpg-to-pdf', 'heic-to-pdf'].includes(id)) {
+        return <ImageToPdfTool tool={tool} />;
+      }
+      return <ConverterTool tool={tool} />;
+    }
+
+    if (tool.category === 'convert-from-pdf') {
+      if (['pdf-to-jpg', 'pdf-to-png', 'pdf-to-webp', 'extract-images', 'pdf-to-greyscale-images', 'pdf-to-images'].includes(id)) {
+        return <PdfToImageTool tool={tool} />;
+      }
+      return <ConverterTool tool={tool} />;
+    }
+
     // Safe fallback to inspect/repair if any future tool is added
     return <InspectRepairTool tool={tool} />;
   };

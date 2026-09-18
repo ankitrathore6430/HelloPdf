@@ -4,6 +4,7 @@ export const CATEGORIES: CategoryInfo[] = [
   { id: 'all', name: 'All Tools', description: 'Browse all 108 PDF & document processing tools', icon: 'LayoutGrid', count: 108 },
   { id: 'trending', name: 'Trending', description: 'Fastest growing and trending community-favorite PDF tools', icon: 'Flame', count: 17 },
   { id: 'organize', name: 'Organize PDF', description: 'Merge, split, reorder, rotate, and manage PDF pages', icon: 'Layers', count: 21 },
+  { id: 'convert', name: 'Convert PDF', description: 'Convert to and from PDF across images, text, markdown, and tables', icon: 'ArrowLeftRight', count: 17 },
   { id: 'convert-to-pdf', name: 'Convert to PDF', description: 'Transform images, text, markdown, and tables into PDF', icon: 'FileInput', count: 9 },
   { id: 'convert-from-pdf', name: 'Convert from PDF', description: 'Extract images, text, data, and layout from existing PDFs', icon: 'FileOutput', count: 8 },
   { id: 'optimize', name: 'Optimize & Clean', description: 'Compress size, strip metadata, flatten, and repair PDFs', icon: 'Zap', count: 5 },

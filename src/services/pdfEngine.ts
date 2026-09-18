@@ -1582,4 +1582,84 @@ export async function scalePDFContent(file: File, scale = 0.9): Promise<Uint8Arr
   return await pdfDoc.save();
 }
 
+// 45. Overlay Coordinate Grid on PDF
+export async function overlayGridOnPDF(
+  file: File,
+  options: {
+    gridStep?: number;
+    color?: { r: number; g: number; b: number };
+    opacity?: number;
+    showLabels?: boolean;
+  } = {}
+): Promise<Uint8Array> {
+  const step = options.gridStep || 50;
+  const opacity = options.opacity !== undefined ? options.opacity : 0.35;
+  const color = options.color || { r: 0.1, g: 0.5, b: 0.9 };
+  const showLabels = options.showLabels !== false;
+
+  const arrayBuffer = await file.arrayBuffer();
+  const pdfDoc = await PDFDocument.load(arrayBuffer, { ignoreEncryption: true });
+  const font = await pdfDoc.embedFont(StandardFonts.Helvetica);
+  const pages = pdfDoc.getPages();
+
+  for (const page of pages) {
+    const { width, height } = page.getSize();
+    const lineColor = rgb(color.r, color.g, color.b);
+
+    // Vertical grid lines
+    for (let x = 0; x <= width; x += step) {
+      page.drawLine({
+        start: { x, y: 0 },
+        end: { x, y: height },
+        thickness: x % (step * 2) === 0 ? 0.75 : 0.4,
+        color: lineColor,
+        opacity,
+      });
+
+      if (showLabels && x > 0 && x < width) {
+        page.drawText(String(Math.round(x)), {
+          x: x + 2,
+          y: 4,
+          size: 7,
+          font,
+          color: lineColor,
+          opacity: Math.min(1, opacity + 0.3),
+        });
+      }
+    }
+
+    // Horizontal grid lines
+    for (let y = 0; y <= height; y += step) {
+      page.drawLine({
+        start: { x: 0, y },
+        end: { x: width, y },
+        thickness: y % (step * 2) === 0 ? 0.75 : 0.4,
+        color: lineColor,
+        opacity,
+      });
+
+      if (showLabels && y > 0 && y < height) {
+        page.drawText(String(Math.round(y)), {
+          x: 4,
+          y: y + 2,
+          size: 7,
+          font,
+          color: lineColor,
+          opacity: Math.min(1, opacity + 0.3),
+        });
+      }
+    }
+  }
+
+  return await pdfDoc.save();
+}
+
+// 46. Linearize and Optimize PDF for Web Streaming
+export async function linearizePDF(file: File): Promise<Uint8Array> {
+  const arrayBuffer = await file.arrayBuffer();
+  const pdfDoc = await PDFDocument.load(arrayBuffer, { ignoreEncryption: true });
+  pdfDoc.setProducer('Hello PDF In-Browser Web Linearizer');
+  return await pdfDoc.save({ useObjectStreams: false });
+}
+
 

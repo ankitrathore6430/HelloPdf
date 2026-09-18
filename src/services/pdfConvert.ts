@@ -1,12 +1,15 @@
 import * as pdfjsLib from 'pdfjs-dist';
+// @ts-ignore
+import pdfjsWorker from 'pdfjs-dist/build/pdf.worker.min.mjs?url';
 import JSZip from 'jszip';
 import { PDFDocument, rgb, StandardFonts } from 'pdf-lib';
 
-// Initialize PDF.js worker securely with fallback
+// Initialize PDF.js worker locally without relying on missing CDN files
 try {
-  // @ts-ignore
-  if (typeof window !== 'undefined' && !pdfjsLib.GlobalWorkerOptions.workerSrc) {
-    pdfjsLib.GlobalWorkerOptions.workerSrc = `https://cdnjs.cloudflare.com/ajax/libs/pdf.js/${pdfjsLib.version || '4.10.38'}/pdf.worker.min.mjs`;
+  if (typeof window !== 'undefined') {
+    pdfjsLib.GlobalWorkerOptions.workerSrc =
+      pdfjsWorker ||
+      `https://unpkg.com/pdfjs-dist@${pdfjsLib.version || '6.3.289'}/build/pdf.worker.min.mjs`;
   }
 } catch {
   // Silently proceed
@@ -381,6 +384,74 @@ export async function markdownToPDF(markdownText: string, title = 'Document'): P
   return await pdfDoc.save();
 }
 
+// 5b. HTML / Code to PDF
+export async function htmlToPDF(htmlOrCode: string, title = 'HTML Document'): Promise<Uint8Array> {
+  const pdfDoc = await PDFDocument.create();
+  const font = await pdfDoc.embedFont(StandardFonts.Helvetica);
+  const boldFont = await pdfDoc.embedFont(StandardFonts.HelveticaBold);
+  const courier = await pdfDoc.embedFont(StandardFonts.Courier);
+
+  const pageWidth = 595.28;
+  const pageHeight = 841.89;
+  const margin = 48;
+  let page = pdfDoc.addPage([pageWidth, pageHeight]);
+  let y = pageHeight - margin;
+
+  // Title header
+  page.drawText(title, { x: margin, y, size: 16, font: boldFont, color: rgb(0.1, 0.15, 0.25) });
+  y -= 22;
+  page.drawLine({
+    start: { x: margin, y },
+    end: { x: pageWidth - margin, y },
+    thickness: 1,
+    color: rgb(0.85, 0.85, 0.9),
+  });
+  y -= 20;
+
+  const lines = htmlOrCode.split('\n');
+  const isCode =
+    htmlOrCode.includes('<!DOCTYPE') ||
+    htmlOrCode.includes('<html') ||
+    htmlOrCode.includes('<div') ||
+    htmlOrCode.includes('<script');
+
+  for (const rawLine of lines) {
+    const line = rawLine.trimEnd();
+    if (y < margin + 25) {
+      page = pdfDoc.addPage([pageWidth, pageHeight]);
+      y = pageHeight - margin;
+    }
+
+    if (!line.trim()) {
+      y -= 10;
+      continue;
+    }
+
+    const cleanText = line.replace(/<[^>]*>/g, '').trim();
+    if (isCode) {
+      page.drawText(line.slice(0, 88), {
+        x: margin,
+        y,
+        size: 9,
+        font: courier,
+        color: rgb(0.2, 0.25, 0.3),
+      });
+      y -= 14;
+    } else if (cleanText) {
+      page.drawText(cleanText.slice(0, 92), {
+        x: margin,
+        y,
+        size: 10,
+        font: font,
+        color: rgb(0.15, 0.15, 0.2),
+      });
+      y -= 16;
+    }
+  }
+
+  return await pdfDoc.save();
+}
+
 // 6. Base64 to PDF
 export async function base64ToPDF(base64Str: string): Promise<Uint8Array> {
   const clean = base64Str.replace(/^data:application\/pdf;base64,/, '').trim();
@@ -605,4 +676,31 @@ export async function analyzePDFColorPalette(file: File): Promise<PDFColorAnalys
     colorSpace: 'DeviceRGB (sRGB calibrated)',
     totalColorsDetected: Object.keys(colorBuckets).length,
   };
+}
+
+// Render a specific PDF page to an existing HTML5 canvas element
+export async function renderPDFPageToCanvasElement(
+  file: File,
+  pageNum: number,
+  canvas: HTMLCanvasElement,
+  scale = 1.5
+): Promise<{ totalPages: number; width: number; height: number }> {
+  const arrayBuffer = await file.arrayBuffer();
+  const loadingTask = pdfjsLib.getDocument({ data: new Uint8Array(arrayBuffer) });
+  const pdf = await loadingTask.promise;
+  const numPages = pdf.numPages;
+  const clampedPage = Math.min(numPages, Math.max(1, pageNum));
+  const page = await pdf.getPage(clampedPage);
+  const viewport = page.getViewport({ scale });
+
+  canvas.width = viewport.width;
+  canvas.height = viewport.height;
+  const ctx = canvas.getContext('2d');
+  if (ctx) {
+    ctx.fillStyle = '#ffffff';
+    ctx.fillRect(0, 0, canvas.width, canvas.height);
+    // @ts-ignore
+    await page.render({ canvasContext: ctx, viewport }).promise;
+  }
+  return { totalPages: numPages, width: viewport.width, height: viewport.height };
 }

@@ -4,6 +4,7 @@ import {
   csvToPDF,
   jsonToPDF,
   markdownToPDF,
+  htmlToPDF,
   base64ToPDF,
   pdfToBase64,
   extractPDFText,
@@ -228,6 +229,8 @@ export const ConverterTool: React.FC<ConverterToolProps> = ({ tool }) => {
           bytes = await jsonToPDF(textContent.trim(), docTitle);
         } else if (isMarkdown) {
           bytes = await markdownToPDF(textContent.trim(), docTitle);
+        } else if (isHtml) {
+          bytes = await htmlToPDF(textContent.trim(), docTitle);
         } else if (isBase64ToPdf) {
           bytes = await base64ToPDF(textContent.trim());
         } else {

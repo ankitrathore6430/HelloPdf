@@ -35,6 +35,8 @@ export const AllToolsSection: React.FC<AllToolsSectionProps> = ({
     // Category filter
     if (selectedCategory === 'trending') {
       list = list.filter((t) => t.badge === 'Trending' || (t.featured && t.rank <= 6));
+    } else if (selectedCategory === 'convert') {
+      list = list.filter((t) => t.category === 'convert-to-pdf' || t.category === 'convert-from-pdf');
     } else if (selectedCategory !== 'all') {
       list = list.filter((t) => t.category === selectedCategory);
     }

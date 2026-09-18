@@ -40,7 +40,9 @@ export const ImageToPdfTool: React.FC<ImageToPdfToolProps> = ({ tool }) => {
 
   const handleFileChange = (newSelected: FileList | null) => {
     if (!newSelected || newSelected.length === 0) return;
-    const added = Array.from(newSelected).filter((f) => f.type.startsWith('image/'));
+    const added = Array.from(newSelected).filter(
+      (f) => f.type.startsWith('image/') || /\.(jpe?g|png|webp|gif|bmp|svg|tiff?|heic)$/i.test(f.name)
+    );
     setFiles((prev) => [...prev, ...added]);
     setResultBlob(null);
     setErrorMessage(null);
