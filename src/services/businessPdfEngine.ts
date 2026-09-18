@@ -14,14 +14,33 @@ export interface InvoiceReceiptData {
   dueDate?: string;
   companyName: string;
   companyAddress?: string;
+  gstin?: string;
+  pan?: string;
+  stateCode?: string;
   clientName: string;
   clientEmail?: string;
   clientAddress?: string;
+  clientGstin?: string;
   currency: string;
-  items: Array<{ desc: string; qty: number; rate: number }>;
+  items: Array<{ desc: string; hsn?: string; qty: number; rate: number }>;
   taxPercent: number;
+  cgstPercent?: number;
+  sgstPercent?: number;
+  isGstInvoice?: boolean;
   paymentMethod?: string;
   notes?: string;
+}
+
+export interface IndianRentReceiptData {
+  receiptNumber: string;
+  tenantName: string;
+  landlordName: string;
+  landlordPan: string;
+  propertyAddress: string;
+  rentAmount: number;
+  rentPeriod: string;
+  paymentMode: string;
+  date: string;
 }
 
 export async function generateBusinessInvoiceReceiptPDF(data: InvoiceReceiptData): Promise<Uint8Array> {
@@ -50,6 +69,18 @@ export async function generateBusinessInvoiceReceiptPDF(data: InvoiceReceiptData
     ? rgb(0.15, 0.45, 0.65)
     : rgb(0.3, 0.35, 0.45);
 
+  // Safe currency symbol handling (Helvetica does not encode unicode ₹; standard Rs. or INR is universally compliant)
+  const displayCurrency =
+    data.currency?.includes('INR') || data.currency?.includes('₹') || data.currency?.includes('Rs')
+      ? 'Rs.'
+      : data.currency?.includes('EUR')
+      ? 'EUR'
+      : data.currency?.includes('GBP')
+      ? 'GBP'
+      : data.currency?.includes('JPY')
+      ? 'JPY'
+      : '$';
+
   page.drawRectangle({
     x: margin,
     y: A4_HEIGHT - margin - 50,
@@ -58,51 +89,75 @@ export async function generateBusinessInvoiceReceiptPDF(data: InvoiceReceiptData
     color: headerColor,
   });
 
-  page.drawText(data.documentType, {
+  const displayDocType = data.isGstInvoice ? 'TAX INVOICE (GST)' : data.documentType;
+
+  page.drawText(displayDocType, {
     x: margin + 20,
     y: A4_HEIGHT - margin - 35,
-    size: 20,
+    size: 18,
     font: bold,
     color: rgb(1, 1, 1),
   });
 
   page.drawText(`# ${data.documentNumber || '001'}`, {
-    x: A4_WIDTH - margin - 160,
+    x: A4_WIDTH - margin - 170,
     y: A4_HEIGHT - margin - 35,
-    size: 14,
+    size: 13,
     font: bold,
     color: rgb(1, 1, 1),
   });
 
-  let currentY = A4_HEIGHT - margin - 80;
+  let currentY = A4_HEIGHT - margin - 78;
 
   // Company Details (Left) vs Client Details (Right)
-  page.drawText('FROM / ISSUER:', { x: margin, y: currentY, size: 9, font: bold, color: rgb(0.4, 0.4, 0.4) });
-  page.drawText('BILLED / DELIVERED TO:', { x: margin + 260, y: currentY, size: 9, font: bold, color: rgb(0.4, 0.4, 0.4) });
+  page.drawText('FROM / ISSUER (SUPPLIER):', { x: margin, y: currentY, size: 8.5, font: bold, color: rgb(0.4, 0.4, 0.4) });
+  page.drawText('BILLED TO / RECIPIENT:', { x: margin + 260, y: currentY, size: 8.5, font: bold, color: rgb(0.4, 0.4, 0.4) });
 
-  currentY -= 16;
-  page.drawText(data.companyName || 'Business Enterprise', { x: margin, y: currentY, size: 12, font: bold, color: rgb(0.1, 0.1, 0.15) });
-  page.drawText(data.clientName || 'Client / Customer', { x: margin + 260, y: currentY, size: 12, font: bold, color: rgb(0.1, 0.1, 0.15) });
+  currentY -= 15;
+  page.drawText(data.companyName || 'Business Enterprise', { x: margin, y: currentY, size: 11, font: bold, color: rgb(0.1, 0.1, 0.15) });
+  page.drawText(data.clientName || 'Client / Customer', { x: margin + 260, y: currentY, size: 11, font: bold, color: rgb(0.1, 0.1, 0.15) });
 
-  currentY -= 14;
+  currentY -= 13;
   if (data.companyAddress) {
-    page.drawText(data.companyAddress.substring(0, 40), { x: margin, y: currentY, size: 9, font, color: rgb(0.3, 0.3, 0.3) });
+    page.drawText(data.companyAddress.substring(0, 42), { x: margin, y: currentY, size: 8.5, font, color: rgb(0.3, 0.3, 0.3) });
   }
-  if (data.clientEmail) {
-    page.drawText(data.clientEmail.substring(0, 40), { x: margin + 260, y: currentY, size: 9, font, color: rgb(0.3, 0.3, 0.3) });
+  if (data.clientAddress || data.clientEmail) {
+    const recipientInfo = data.clientAddress || data.clientEmail || '';
+    page.drawText(recipientInfo.substring(0, 42), { x: margin + 260, y: currentY, size: 8.5, font, color: rgb(0.3, 0.3, 0.3) });
   }
 
-  currentY -= 16;
-  page.drawText(`Date: ${data.date || new Date().toLocaleDateString()}`, { x: margin, y: currentY, size: 9, font, color: rgb(0.3, 0.3, 0.3) });
+  // GST & Tax Identifiers if provided
+  if (data.gstin || data.pan || data.stateCode || data.clientGstin) {
+    currentY -= 13;
+    const companyGstText = [
+      data.gstin ? `GSTIN: ${data.gstin}` : '',
+      data.pan ? `PAN: ${data.pan}` : '',
+      data.stateCode ? `State: ${data.stateCode}` : '',
+    ].filter(Boolean).join(' | ');
+    if (companyGstText) {
+      page.drawText(companyGstText.substring(0, 45), { x: margin, y: currentY, size: 8, font: bold, color: rgb(0.2, 0.3, 0.5) });
+    }
+
+    const clientGstText = [
+      data.clientGstin ? `GSTIN: ${data.clientGstin}` : '',
+      data.clientEmail && data.clientAddress ? data.clientEmail : '',
+    ].filter(Boolean).join(' | ');
+    if (clientGstText) {
+      page.drawText(clientGstText.substring(0, 45), { x: margin + 260, y: currentY, size: 8, font: bold, color: rgb(0.2, 0.3, 0.5) });
+    }
+  }
+
+  currentY -= 15;
+  page.drawText(`Date: ${data.date || new Date().toLocaleDateString()}`, { x: margin, y: currentY, size: 8.5, font, color: rgb(0.3, 0.3, 0.3) });
   if (data.dueDate) {
-    page.drawText(`Due Date: ${data.dueDate}`, { x: margin + 140, y: currentY, size: 9, font, color: rgb(0.3, 0.3, 0.3) });
+    page.drawText(`Due Date: ${data.dueDate}`, { x: margin + 130, y: currentY, size: 8.5, font, color: rgb(0.3, 0.3, 0.3) });
   }
   if (data.paymentMethod) {
-    page.drawText(`Payment Method: ${data.paymentMethod}`, { x: margin + 260, y: currentY, size: 9, font: bold, color: rgb(0.2, 0.2, 0.2) });
+    page.drawText(`Payment: ${data.paymentMethod}`, { x: margin + 260, y: currentY, size: 8.5, font: bold, color: rgb(0.2, 0.2, 0.2) });
   }
 
   // Divider line
-  currentY -= 20;
+  currentY -= 18;
   page.drawLine({
     start: { x: margin, y: currentY },
     end: { x: A4_WIDTH - margin, y: currentY },
@@ -111,23 +166,23 @@ export async function generateBusinessInvoiceReceiptPDF(data: InvoiceReceiptData
   });
 
   // Table Header
-  currentY -= 25;
+  currentY -= 22;
   page.drawRectangle({
     x: margin,
     y: currentY - 5,
     width: A4_WIDTH - margin * 2,
-    height: 24,
+    height: 22,
     color: rgb(0.95, 0.96, 0.98),
   });
 
-  page.drawText('ITEM DESCRIPTION', { x: margin + 10, y: currentY + 3, size: 9, font: bold, color: rgb(0.2, 0.2, 0.25) });
-  page.drawText('QTY', { x: margin + 300, y: currentY + 3, size: 9, font: bold, color: rgb(0.2, 0.2, 0.25) });
-  page.drawText('RATE', { x: margin + 360, y: currentY + 3, size: 9, font: bold, color: rgb(0.2, 0.2, 0.25) });
-  page.drawText('AMOUNT', { x: A4_WIDTH - margin - 75, y: currentY + 3, size: 9, font: bold, color: rgb(0.2, 0.2, 0.25) });
+  page.drawText('ITEM DESCRIPTION / HSN', { x: margin + 10, y: currentY + 3, size: 8.5, font: bold, color: rgb(0.2, 0.2, 0.25) });
+  page.drawText('QTY', { x: margin + 290, y: currentY + 3, size: 8.5, font: bold, color: rgb(0.2, 0.2, 0.25) });
+  page.drawText('RATE', { x: margin + 350, y: currentY + 3, size: 8.5, font: bold, color: rgb(0.2, 0.2, 0.25) });
+  page.drawText('AMOUNT', { x: A4_WIDTH - margin - 75, y: currentY + 3, size: 8.5, font: bold, color: rgb(0.2, 0.2, 0.25) });
 
   // Items
   let subtotal = 0;
-  currentY -= 20;
+  currentY -= 18;
   const items = data.items && data.items.length > 0 ? data.items : [{ desc: 'Professional Consulting Services', qty: 1, rate: 500 }];
 
   items.forEach((item, index) => {
@@ -139,17 +194,18 @@ export async function generateBusinessInvoiceReceiptPDF(data: InvoiceReceiptData
         x: margin,
         y: currentY - 5,
         width: A4_WIDTH - margin * 2,
-        height: 20,
+        height: 19,
         color: rgb(0.98, 0.98, 0.99),
       });
     }
 
-    page.drawText(item.desc.substring(0, 48), { x: margin + 10, y: currentY, size: 9, font, color: rgb(0.2, 0.2, 0.2) });
-    page.drawText(String(item.qty), { x: margin + 305, y: currentY, size: 9, font, color: rgb(0.3, 0.3, 0.3) });
-    page.drawText(`${data.currency} ${item.rate.toFixed(2)}`, { x: margin + 360, y: currentY, size: 9, font, color: rgb(0.3, 0.3, 0.3) });
-    page.drawText(`${data.currency} ${amount.toFixed(2)}`, { x: A4_WIDTH - margin - 75, y: currentY, size: 9, font: bold, color: rgb(0.1, 0.1, 0.1) });
+    const itemDesc = item.hsn ? `${item.desc} (HSN ${item.hsn})` : item.desc;
+    page.drawText(itemDesc.substring(0, 46), { x: margin + 10, y: currentY, size: 8.5, font, color: rgb(0.2, 0.2, 0.2) });
+    page.drawText(String(item.qty), { x: margin + 295, y: currentY, size: 8.5, font, color: rgb(0.3, 0.3, 0.3) });
+    page.drawText(`${displayCurrency} ${item.rate.toLocaleString('en-IN')}`, { x: margin + 350, y: currentY, size: 8.5, font, color: rgb(0.3, 0.3, 0.3) });
+    page.drawText(`${displayCurrency} ${amount.toLocaleString('en-IN')}`, { x: A4_WIDTH - margin - 75, y: currentY, size: 8.5, font: bold, color: rgb(0.1, 0.1, 0.1) });
 
-    currentY -= 22;
+    currentY -= 20;
   });
 
   // Table Bottom Divider
@@ -161,57 +217,75 @@ export async function generateBusinessInvoiceReceiptPDF(data: InvoiceReceiptData
   });
 
   // Totals Area
-  currentY -= 25;
-  const taxAmount = (subtotal * (data.taxPercent || 0)) / 100;
-  const grandTotal = subtotal + taxAmount;
+  currentY -= 22;
+  let taxAmount = 0;
+  let grandTotal = subtotal;
 
-  const totalBoxX = A4_WIDTH - margin - 180;
-  page.drawText('Subtotal:', { x: totalBoxX, y: currentY, size: 10, font, color: rgb(0.3, 0.3, 0.3) });
-  page.drawText(`${data.currency} ${subtotal.toFixed(2)}`, { x: totalBoxX + 80, y: currentY, size: 10, font, color: rgb(0.1, 0.1, 0.1) });
+  const totalBoxX = A4_WIDTH - margin - 200;
+  page.drawText('Subtotal:', { x: totalBoxX, y: currentY, size: 9.5, font, color: rgb(0.3, 0.3, 0.3) });
+  page.drawText(`${displayCurrency} ${subtotal.toLocaleString('en-IN', { minimumFractionDigits: 2 })}`, { x: totalBoxX + 90, y: currentY, size: 9.5, font, color: rgb(0.1, 0.1, 0.1) });
 
-  if (data.taxPercent > 0) {
-    currentY -= 16;
-    page.drawText(`Tax (${data.taxPercent}%):`, { x: totalBoxX, y: currentY, size: 10, font, color: rgb(0.3, 0.3, 0.3) });
-    page.drawText(`${data.currency} ${taxAmount.toFixed(2)}`, { x: totalBoxX + 80, y: currentY, size: 10, font, color: rgb(0.1, 0.1, 0.1) });
+  if (data.isGstInvoice) {
+    const cgstRate = data.cgstPercent ?? 9;
+    const sgstRate = data.sgstPercent ?? 9;
+    const cgstAmount = (subtotal * cgstRate) / 100;
+    const sgstAmount = (subtotal * sgstRate) / 100;
+    taxAmount = cgstAmount + sgstAmount;
+    grandTotal = subtotal + taxAmount;
+
+    currentY -= 14;
+    page.drawText(`CGST (${cgstRate}%):`, { x: totalBoxX, y: currentY, size: 8.5, font, color: rgb(0.3, 0.3, 0.3) });
+    page.drawText(`${displayCurrency} ${cgstAmount.toLocaleString('en-IN', { minimumFractionDigits: 2 })}`, { x: totalBoxX + 90, y: currentY, size: 8.5, font, color: rgb(0.3, 0.3, 0.3) });
+
+    currentY -= 14;
+    page.drawText(`SGST (${sgstRate}%):`, { x: totalBoxX, y: currentY, size: 8.5, font, color: rgb(0.3, 0.3, 0.3) });
+    page.drawText(`${displayCurrency} ${sgstAmount.toLocaleString('en-IN', { minimumFractionDigits: 2 })}`, { x: totalBoxX + 90, y: currentY, size: 8.5, font, color: rgb(0.3, 0.3, 0.3) });
+  } else if (data.taxPercent > 0) {
+    taxAmount = (subtotal * data.taxPercent) / 100;
+    grandTotal = subtotal + taxAmount;
+    currentY -= 15;
+    page.drawText(`Tax (${data.taxPercent}%):`, { x: totalBoxX, y: currentY, size: 9, font, color: rgb(0.3, 0.3, 0.3) });
+    page.drawText(`${displayCurrency} ${taxAmount.toLocaleString('en-IN', { minimumFractionDigits: 2 })}`, { x: totalBoxX + 90, y: currentY, size: 9, font, color: rgb(0.1, 0.1, 0.1) });
   }
 
-  currentY -= 22;
+  currentY -= 20;
   page.drawRectangle({
     x: totalBoxX - 10,
     y: currentY - 6,
-    width: 190,
-    height: 26,
+    width: 210,
+    height: 25,
     color: rgb(0.95, 0.97, 1),
     borderWidth: 1,
     borderColor: headerColor,
   });
 
-  page.drawText('TOTAL AMOUNT:', { x: totalBoxX, y: currentY, size: 10, font: bold, color: headerColor });
-  page.drawText(`${data.currency} ${grandTotal.toFixed(2)}`, { x: totalBoxX + 90, y: currentY, size: 11, font: bold, color: rgb(0.1, 0.1, 0.15) });
+  page.drawText('TOTAL AMOUNT:', { x: totalBoxX, y: currentY, size: 9.5, font: bold, color: headerColor });
+  page.drawText(`${displayCurrency} ${grandTotal.toLocaleString('en-IN', { minimumFractionDigits: 2 })}`, { x: totalBoxX + 90, y: currentY, size: 10, font: bold, color: rgb(0.1, 0.1, 0.15) });
 
   // Notes & Payment terms
   if (data.notes) {
-    currentY -= 40;
-    page.drawText('TERMS & NOTES:', { x: margin, y: currentY, size: 9, font: bold, color: rgb(0.4, 0.4, 0.4) });
-    currentY -= 14;
-    page.drawText(data.notes.substring(0, 80), { x: margin, y: currentY, size: 8, font, color: rgb(0.4, 0.4, 0.4) });
+    currentY -= 35;
+    page.drawText('TERMS & DECLARATION:', { x: margin, y: currentY, size: 8.5, font: bold, color: rgb(0.4, 0.4, 0.4) });
+    currentY -= 12;
+    page.drawText(data.notes.substring(0, 95), { x: margin, y: currentY, size: 8, font, color: rgb(0.4, 0.4, 0.4) });
   }
 
   // Signature Block
-  const sigY = margin + 50;
+  const sigY = margin + 45;
   page.drawLine({
     start: { x: A4_WIDTH - margin - 180, y: sigY },
     end: { x: A4_WIDTH - margin, y: sigY },
     thickness: 1,
     color: rgb(0.4, 0.4, 0.4),
   });
-  page.drawText('Authorized Signatory', { x: A4_WIDTH - margin - 150, y: sigY - 14, size: 9, font: bold, color: rgb(0.3, 0.3, 0.3) });
+  page.drawText('For ' + (data.companyName || 'Business Enterprise').substring(0, 30), { x: A4_WIDTH - margin - 180, y: sigY + 8, size: 8, font, color: rgb(0.3, 0.3, 0.3) });
+  page.drawText('Authorized Signatory', { x: A4_WIDTH - margin - 150, y: sigY - 13, size: 8.5, font: bold, color: rgb(0.3, 0.3, 0.3) });
 
   // Footer Tagline
-  page.drawText('Generated securely in browser with Hello PDF • 100% Client-Side Privacy', {
+  page.drawText('Generated with Hello PDF • 100% Client-Side In-Browser • Made in India', {
     x: margin,
     y: margin,
-    size: 8,
+    size: 7.5,
     font,
     color: rgb(0.6, 0.6, 0.6),
   });
@@ -1163,6 +1237,247 @@ export async function generateMusicStaffPDF(): Promise<Uint8Array> {
       color: rgb(0.25, 0.25, 0.3),
     });
   }
+
+  return await pdfDoc.save();
+}
+
+// 11. Indian House Rent Receipt (Section 10(13A) HRA Exemption)
+export async function generateIndianRentReceiptPDF(data: IndianRentReceiptData): Promise<Uint8Array> {
+  const pdfDoc = await PDFDocument.create();
+  const font = await pdfDoc.embedFont(StandardFonts.Helvetica);
+  const bold = await pdfDoc.embedFont(StandardFonts.HelveticaBold);
+  const italic = await pdfDoc.embedFont(StandardFonts.HelveticaOblique);
+
+  const page = pdfDoc.addPage([A4_WIDTH, A4_HEIGHT]);
+  const margin = 45;
+
+  // Outer decorative double frame
+  page.drawRectangle({
+    x: margin,
+    y: margin,
+    width: A4_WIDTH - margin * 2,
+    height: A4_HEIGHT - margin * 2,
+    borderWidth: 2,
+    borderColor: rgb(0.15, 0.25, 0.45),
+    color: rgb(1, 1, 1),
+  });
+
+  page.drawRectangle({
+    x: margin + 4,
+    y: margin + 4,
+    width: A4_WIDTH - (margin + 4) * 2,
+    height: A4_HEIGHT - (margin + 4) * 2,
+    borderWidth: 0.8,
+    borderColor: rgb(0.2, 0.35, 0.6),
+  });
+
+  let y = A4_HEIGHT - margin - 40;
+
+  // Header Box
+  page.drawRectangle({
+    x: margin + 15,
+    y: y - 45,
+    width: A4_WIDTH - (margin + 15) * 2,
+    height: 60,
+    color: rgb(0.95, 0.97, 1),
+    borderColor: rgb(0.2, 0.35, 0.65),
+    borderWidth: 1,
+  });
+
+  page.drawText('HOUSE RENT RECEIPT', {
+    x: A4_WIDTH / 2 - 105,
+    y: y - 10,
+    size: 18,
+    font: bold,
+    color: rgb(0.12, 0.2, 0.4),
+  });
+
+  page.drawText('(Issued for claiming House Rent Allowance under Section 10(13A) of Income Tax Act, 1961)', {
+    x: A4_WIDTH / 2 - 195,
+    y: y - 30,
+    size: 8.5,
+    font: italic,
+    color: rgb(0.3, 0.35, 0.45),
+  });
+
+  y -= 75;
+
+  // Receipt meta
+  page.drawText(`Receipt No: ${data.receiptNumber || 'HRR-2026-01'}`, {
+    x: margin + 25,
+    y,
+    size: 10,
+    font: bold,
+    color: rgb(0.2, 0.2, 0.25),
+  });
+
+  page.drawText(`Date: ${data.date || new Date().toLocaleDateString('en-IN')}`, {
+    x: A4_WIDTH - margin - 150,
+    y,
+    size: 10,
+    font: bold,
+    color: rgb(0.2, 0.2, 0.25),
+  });
+
+  y -= 25;
+  page.drawLine({
+    start: { x: margin + 20, y },
+    end: { x: A4_WIDTH - margin - 20, y },
+    thickness: 1,
+    color: rgb(0.85, 0.88, 0.92),
+  });
+
+  y -= 30;
+
+  // Amount Highlight Box
+  page.drawRectangle({
+    x: margin + 25,
+    y: y - 15,
+    width: 235,
+    height: 34,
+    color: rgb(0.92, 0.97, 0.94),
+    borderColor: rgb(0.15, 0.6, 0.35),
+    borderWidth: 1.5,
+  });
+
+  page.drawText(`Amount Received: Rs. ${Number(data.rentAmount || 0).toLocaleString('en-IN')}/-`, {
+    x: margin + 35,
+    y: y - 3,
+    size: 11,
+    font: bold,
+    color: rgb(0.1, 0.5, 0.25),
+  });
+
+  y -= 45;
+
+  // Statement text
+  const statement = `Received with thanks from Mr. / Ms. ${data.tenantName || 'Tenant Name'} a sum of Rs. ${Number(data.rentAmount || 0).toLocaleString('en-IN')}/- towards monthly house rent for the rented residential premises situated at:`;
+  
+  // Wrap statement
+  const words = statement.split(' ');
+  let line = '';
+  for (const w of words) {
+    if ((line + ' ' + w).length > 72) {
+      page.drawText(line, { x: margin + 25, y, size: 10, font, color: rgb(0.15, 0.15, 0.2) });
+      line = w;
+      y -= 18;
+    } else {
+      line = line ? line + ' ' + w : w;
+    }
+  }
+  if (line) {
+    page.drawText(line, { x: margin + 25, y, size: 10, font, color: rgb(0.15, 0.15, 0.2) });
+    y -= 18;
+  }
+
+  y -= 10;
+  // Property address box
+  page.drawRectangle({
+    x: margin + 25,
+    y: y - 25,
+    width: A4_WIDTH - (margin + 25) * 2,
+    height: 36,
+    color: rgb(0.98, 0.98, 0.99),
+    borderColor: rgb(0.8, 0.85, 0.9),
+    borderWidth: 1,
+  });
+
+  page.drawText(data.propertyAddress || 'Flat / House Address, City, State, PIN Code', {
+    x: margin + 35,
+    y: y - 10,
+    size: 9.5,
+    font: bold,
+    color: rgb(0.15, 0.15, 0.25),
+  });
+
+  y -= 50;
+
+  // Period & Payment Mode
+  page.drawText(`Rental Period:`, { x: margin + 25, y, size: 10, font: bold, color: rgb(0.3, 0.3, 0.35) });
+  page.drawText(data.rentPeriod || 'Current Month', { x: margin + 120, y, size: 10, font, color: rgb(0.1, 0.1, 0.15) });
+
+  y -= 20;
+  page.drawText(`Payment Mode:`, { x: margin + 25, y, size: 10, font: bold, color: rgb(0.3, 0.3, 0.35) });
+  page.drawText(data.paymentMode || 'Bank Transfer / UPI / Cheque', { x: margin + 120, y, size: 10, font, color: rgb(0.1, 0.1, 0.15) });
+
+  y -= 35;
+  page.drawLine({
+    start: { x: margin + 20, y },
+    end: { x: A4_WIDTH - margin - 20, y },
+    thickness: 1,
+    color: rgb(0.85, 0.88, 0.92),
+  });
+
+  y -= 30;
+
+  // Landlord Details
+  page.drawText('LANDLORD / PROPERTY OWNER DETAILS:', {
+    x: margin + 25,
+    y,
+    size: 10,
+    font: bold,
+    color: rgb(0.15, 0.25, 0.45),
+  });
+
+  y -= 22;
+  page.drawText(`Name:`, { x: margin + 25, y, size: 10, font: bold, color: rgb(0.3, 0.3, 0.35) });
+  page.drawText(data.landlordName || 'Landlord / Owner Name', { x: margin + 80, y, size: 10, font: bold, color: rgb(0.1, 0.1, 0.15) });
+
+  y -= 20;
+  page.drawText(`PAN No:`, { x: margin + 25, y, size: 10, font: bold, color: rgb(0.3, 0.3, 0.35) });
+  page.drawText(data.landlordPan || 'ABCDE1234F', { x: margin + 80, y, size: 10, font: bold, color: rgb(0.1, 0.35, 0.7) });
+
+  y -= 20;
+  page.drawText('* Note: Under CBDT circular, Landlord PAN is mandatory if annual rent exceeds Rs. 1,00,000.', {
+    x: margin + 25,
+    y,
+    size: 8,
+    font: italic,
+    color: rgb(0.5, 0.5, 0.55),
+  });
+
+  // Stamp and Signature area (Bottom)
+  const stampX = A4_WIDTH - margin - 150;
+  const stampY = margin + 80;
+
+  // Revenue Stamp Box
+  page.drawRectangle({
+    x: stampX,
+    y: stampY,
+    width: 90,
+    height: 105,
+    borderWidth: 1,
+    borderColor: rgb(0.5, 0.55, 0.65),
+    color: rgb(0.98, 0.98, 0.99),
+  });
+
+  page.drawText('Affix Re. 1 / Rs. 5', { x: stampX + 8, y: stampY + 60, size: 7.5, font, color: rgb(0.5, 0.5, 0.55) });
+  page.drawText('Revenue Stamp', { x: stampX + 12, y: stampY + 48, size: 7.5, font: bold, color: rgb(0.4, 0.4, 0.45) });
+  page.drawText('& Sign Across', { x: stampX + 16, y: stampY + 36, size: 7, font: italic, color: rgb(0.5, 0.5, 0.55) });
+
+  // Signature line
+  page.drawLine({
+    start: { x: stampX - 40, y: stampY - 25 },
+    end: { x: stampX + 110, y: stampY - 25 },
+    thickness: 1,
+    color: rgb(0.3, 0.3, 0.3),
+  });
+  page.drawText('Signature of Landlord / House Owner', {
+    x: stampX - 25,
+    y: stampY - 38,
+    size: 8.5,
+    font: bold,
+    color: rgb(0.25, 0.25, 0.3),
+  });
+
+  // Footer Tagline
+  page.drawText('Generated with Hello PDF • 100% Client-Side Privacy • Made in India', {
+    x: margin + 20,
+    y: margin + 15,
+    size: 7.5,
+    font,
+    color: rgb(0.6, 0.6, 0.6),
+  });
 
   return await pdfDoc.save();
 }

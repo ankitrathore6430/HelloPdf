@@ -1,6 +1,6 @@
 {
   "name": "Hello PDF",
-  "description": "Complete client-side 100+ PDF tool suite for merging, splitting, converting, organizing, and editing PDFs in the browser.",
+  "description": "Complete client-side 100+ PDF tool suite for India. Merge, split, compress for UPSC/SSC/Govt portals, create GST invoices, HRA rent receipts, and convert documents directly in the browser.",
   "requestFramePermissions": [],
   "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
 }

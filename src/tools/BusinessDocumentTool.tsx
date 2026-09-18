@@ -12,6 +12,7 @@ import {
   generateMonthlyCalendarPDF,
   generateTodoListPDF,
   generateMusicStaffPDF,
+  generateIndianRentReceiptPDF,
 } from '../services/businessPdfEngine';
 import { generatePaperPDF } from '../services/pdfEngine';
 import {
@@ -83,26 +84,45 @@ export const BusinessDocumentTool: React.FC<BusinessDocumentToolProps> = ({ tool
   // 1. Finance State (Invoice / Receipt / PO / Packing Slip / Expense / Ledger)
   const [docType, setDocType] = useState<string>('INVOICE');
   const [docNumber, setDocNumber] = useState('INV-2026-001');
-  const [companyName, setCompanyName] = useState('Acme Digital Innovations Ltd.');
-  const [companyAddress, setCompanyAddress] = useState('100 Silicon Ave, Suite 400, Austin, TX');
-  const [clientName, setClientName] = useState('Apex Enterprise Global Inc.');
-  const [clientEmail, setClientEmail] = useState('billing@apexenterprise.com');
-  const [currency, setCurrency] = useState('USD ($)');
-  const [taxPercent, setTaxPercent] = useState(8);
-  const [paymentMethod, setPaymentMethod] = useState('Bank Wire Transfer');
-  const [notes, setNotes] = useState('Payment is requested within 30 days of issuance.');
-  const [items, setItems] = useState<Array<{ desc: string; qty: number; rate: number }>>([
-    { desc: 'Cloud Infrastructure & High-Performance Architecture', qty: 1, rate: 850 },
-    { desc: 'Client-Side PDF Engine Optimization & Testing', qty: 2, rate: 450 },
-    { desc: 'Security Audit & Zero-Knowledge Protocol Verification', qty: 1, rate: 600 },
+  const [companyName, setCompanyName] = useState('Bharat Infotech Solutions Pvt. Ltd.');
+  const [companyAddress, setCompanyAddress] = useState('Plot 44, Electronic City Phase 1, Bengaluru, Karnataka - 560100');
+  const [clientName, setClientName] = useState('Reliance Digital Enterprises Ltd.');
+  const [clientEmail, setClientEmail] = useState('accounts@reliancedigital.in');
+  const [currency, setCurrency] = useState('INR (₹)');
+  const [taxPercent, setTaxPercent] = useState(18);
+  const [paymentMethod, setPaymentMethod] = useState('UPI / NEFT / IMPS Bank Transfer');
+  const [notes, setNotes] = useState('Subject to Bengaluru jurisdiction. Payment requested within 15 days of issuance.');
+  const [items, setItems] = useState<Array<{ desc: string; hsn?: string; qty: number; rate: number }>>([
+    { desc: 'Cloud Architecture & High-Throughput Engineering', hsn: '998313', qty: 1, rate: 45000 },
+    { desc: 'Client-Side PDF Engine Optimization & Testing', hsn: '998314', qty: 2, rate: 25000 },
+    { desc: 'DPDP Act 2023 Compliance & Security Audit', hsn: '998315', qty: 1, rate: 30000 },
   ]);
+
+  // Indian GST Specifics
+  const [isGstInvoice, setIsGstInvoice] = useState(true);
+  const [gstin, setGstin] = useState('29AAAAA0000A1Z5');
+  const [pan, setPan] = useState('AAACA1234F');
+  const [stateCode, setStateCode] = useState('29 - Karnataka');
+  const [clientGstin, setClientGstin] = useState('27AAAAA0000A1Z2');
+  const [cgstPercent, setCgstPercent] = useState(9);
+  const [sgstPercent, setSgstPercent] = useState(9);
 
   // 2. Agreement State
   const [agreementTitle, setAgreementTitle] = useState('Mutual Non-Disclosure Agreement (NDA)');
-  const [partyA, setPartyA] = useState('Disclosing Corporation Inc.');
-  const [partyB, setPartyB] = useState('Recipient Partner Labs');
-  const [jurisdiction, setJurisdiction] = useState('State of California, United States');
+  const [partyA, setPartyA] = useState('Bharat Digital Innovations Pvt. Ltd.');
+  const [partyB, setPartyB] = useState('Apex Technologies India Pvt. Ltd.');
+  const [jurisdiction, setJurisdiction] = useState('Bengaluru, Karnataka, India (Indian Contract Act, 1872)');
   const [termDuration, setTermDuration] = useState('2 Years from Execution Date');
+
+  // Indian HRA Rent Receipt State (under Sec 10(13A))
+  const [isHraReceipt, setIsHraReceipt] = useState(false);
+  const [tenantName, setTenantName] = useState('Amit Kumar Verma');
+  const [landlordName, setLandlordName] = useState('Shri Rajesh Sharma');
+  const [landlordPan, setLandlordPan] = useState('ABCDE1234F');
+  const [propertyAddress, setPropertyAddress] = useState('Flat 402, Green Glen Layout, Bellandur, Bengaluru, Karnataka - 560103');
+  const [rentAmount, setRentAmount] = useState(28000);
+  const [rentPeriod, setRentPeriod] = useState('October 2026');
+  const [rentPaymentMode, setRentPaymentMode] = useState('UPI / Direct Bank Transfer');
 
   // 3. Award / Certificate State
   const [certType, setCertType] = useState<'CERTIFICATE OF ACHIEVEMENT' | 'CERTIFICATE OF APPRECIATION' | 'HONORARY DIPLOMA'>('CERTIFICATE OF ACHIEVEMENT');
@@ -110,7 +130,7 @@ export const BusinessDocumentTool: React.FC<BusinessDocumentToolProps> = ({ tool
   const [achievementDesc, setAchievementDesc] = useState(
     'For successfully demonstrating master-level competency in Cloud Architecture & High-Performance Systems.'
   );
-  const [certOrg, setCertOrg] = useState('Global Institute of Technology & Applied Sciences');
+  const [certOrg, setCertOrg] = useState('Indian Institute of Technology (IIT) & Applied Sciences');
   const [signatory1, setSignatory1] = useState('Prof. Arthur Vance');
   const [signatory2, setSignatory2] = useState('Elena Rostova');
 
@@ -119,28 +139,28 @@ export const BusinessDocumentTool: React.FC<BusinessDocumentToolProps> = ({ tool
   const [opsAuthor, setOpsAuthor] = useState('Operations Management Dept');
 
   // 5. Medical Prescription State
-  const [doctorName, setDoctorName] = useState('Dr. Marcus Sterling, MD');
-  const [degrees, setDegrees] = useState('MD, FACP (Internal Medicine)');
-  const [regNumber, setRegNumber] = useState('MED-491024');
-  const [clinicName, setClinicName] = useState('St. Jude Wellness & Healthcare Clinic');
-  const [patientName, setPatientName] = useState('Eleanor Vance');
-  const [patientAgeGender, setPatientAgeGender] = useState('38 Yrs / Female');
+  const [doctorName, setDoctorName] = useState('Dr. Ramesh Kumar, MBBS, MD');
+  const [degrees, setDegrees] = useState('MBBS, MD (Medicine) - AIIMS New Delhi');
+  const [regNumber, setRegNumber] = useState('DMC / MCI-481920');
+  const [clinicName, setClinicName] = useState('Sanjivani Healthcare & Diagnostic Clinic');
+  const [patientName, setPatientName] = useState('Pooja Verma');
+  const [patientAgeGender, setPatientAgeGender] = useState('29 Yrs / Female');
   const [rxMeds, setRxMeds] = useState([
-    'Amoxicillin 500mg - 1 capsule every 8 hours after meals (7 Days)',
-    'Paracetamol 650mg - 1 tablet SOS for fever or pain relief',
-    'Vitamin C & Zinc Supplement - 1 tablet daily with breakfast (30 Days)',
+    'Paracetamol 650mg (Dolo) - 1 tablet SOS after meals for fever/body pain',
+    'Pantoprazole 40mg (Pan-40) - 1 tablet empty stomach in morning (5 Days)',
+    'Azithromycin 500mg (Azee) - 1 tablet once daily after dinner (3 Days)',
   ]);
 
   // 6. Resume State
-  const [resumeName, setResumeName] = useState('ALEXANDER MORGAN');
-  const [resumeTitle, setResumeTitle] = useState('Senior Systems Architect & Engineering Lead');
-  const [resumeEmail, setResumeEmail] = useState('alex.morgan@workmail.com');
-  const [resumePhone, setResumePhone] = useState('+1 (555) 349-2041');
-  const [resumeLocation, setResumeLocation] = useState('San Francisco, CA');
+  const [resumeName, setResumeName] = useState('PRIYA SUNDARAM');
+  const [resumeTitle, setResumeTitle] = useState('Senior Full-Stack Software Engineer & Tech Lead');
+  const [resumeEmail, setResumeEmail] = useState('priya.sundaram@techindia.com');
+  const [resumePhone, setResumePhone] = useState('+91 98765 43210');
+  const [resumeLocation, setResumeLocation] = useState('Bengaluru, Karnataka, India');
   const [resumeSummary, setResumeSummary] = useState(
-    'Versatile software architect with 9+ years building high-throughput client-side applications, document processing engines, and distributed web platforms.'
+    'Versatile software architect with 8+ years building high-throughput client-side applications, document processing engines, and distributed web platforms.'
   );
-  const [resumeSkills, setResumeSkills] = useState('TypeScript, React, WebAssembly, PDF-Lib, Canvas API, Tailwind CSS, Docker, Cloud Run');
+  const [resumeSkills, setResumeSkills] = useState('TypeScript, React, Node.js, WebAssembly, PDF-Lib, Canvas API, Tailwind CSS, Docker, Cloud Run');
 
   // 7. Stationery & Paper
   const [paperKind, setPaperKind] = useState<'dot' | 'lined' | 'graph' | 'music'>(
@@ -187,65 +207,65 @@ export const BusinessDocumentTool: React.FC<BusinessDocumentToolProps> = ({ tool
       setDocType('INVOICE');
       setDocNumber('INV-2026-001');
       setItems([
-        { desc: 'Cloud Infrastructure & High-Performance Architecture', qty: 1, rate: 850 },
-        { desc: 'Client-Side PDF Engine Optimization & Testing', qty: 2, rate: 450 },
-        { desc: 'Security Audit & Zero-Knowledge Protocol Verification', qty: 1, rate: 600 },
+        { desc: 'Cloud Architecture & High-Throughput Engineering', hsn: '998313', qty: 1, rate: 45000 },
+        { desc: 'Client-Side PDF Engine Optimization & Testing', hsn: '998314', qty: 2, rate: 25000 },
+        { desc: 'DPDP Act 2023 Compliance & Security Audit', hsn: '998315', qty: 1, rate: 30000 },
       ]);
     } else if (id === 'receipt-maker') {
       setDocType('RECEIPT');
       setDocNumber('REC-2026-804');
       setItems([
-        { desc: 'Annual Enterprise Software Subscription (10 Seats)', qty: 1, rate: 1200 },
-        { desc: 'Dedicated SLA & Priority 24/7 Technical Support', qty: 1, rate: 350 },
+        { desc: 'Annual Enterprise Software License & Maintenance', hsn: '997331', qty: 1, rate: 85000 },
+        { desc: 'Dedicated Priority Technical Support (Annual SLA)', hsn: '998313', qty: 1, rate: 25000 },
       ]);
     } else if (id === 'purchase-order') {
       setDocType('PURCHASE ORDER');
       setDocNumber('PO-99104');
       setItems([
-        { desc: 'Industrial Grade Rackmount Server Chassis 4U', qty: 4, rate: 620 },
-        { desc: 'High-Throughput NVMe Solid-State Storage 4TB', qty: 8, rate: 380 },
+        { desc: 'Industrial Grade Rackmount Server Chassis 4U', hsn: '8471', qty: 4, rate: 42000 },
+        { desc: 'Enterprise NVMe Solid-State Storage 4TB', hsn: '8471', qty: 8, rate: 26000 },
       ]);
     } else if (id === 'packing-slip') {
       setDocType('PACKING SLIP');
       setDocNumber('PKG-5512');
       setItems([
-        { desc: 'Hardware Security Key (FIDO2 / U2F USB-C)', qty: 25, rate: 45 },
-        { desc: 'Shielded Gigabit Ethernet Cable (Cat6A 10m)', qty: 50, rate: 12 },
+        { desc: 'Hardware Security Key (FIDO2 / U2F USB-C)', hsn: '8471', qty: 25, rate: 3200 },
+        { desc: 'Shielded Gigabit Ethernet Cable (Cat6A 10m)', hsn: '8544', qty: 50, rate: 850 },
       ]);
     } else if (id === 'expense-report') {
       setDocType('EXPENSE REPORT');
       setDocNumber('EXP-7701');
       setItems([
-        { desc: 'Travel: Flight San Francisco to Austin (Tech Summit)', qty: 1, rate: 420 },
-        { desc: 'Lodging: Hotel Accommodations (3 Nights)', qty: 3, rate: 165 },
-        { desc: 'Meals: Business Client Dinner Conference', qty: 1, rate: 140 },
+        { desc: 'Travel: Mumbai to Bengaluru Flight (Tech Summit)', qty: 1, rate: 5800 },
+        { desc: 'Hotel Stay: Bengaluru (3 Nights)', qty: 3, rate: 3200 },
+        { desc: 'Local Conveyance & Business Meals', qty: 1, rate: 2400 },
       ]);
     } else if (id === 'printable-ledger') {
       setDocType('GENERAL LEDGER');
       setDocNumber('GL-2026-Q3');
       setItems([
-        { desc: 'Starting Operating Capital Balance Forward', qty: 1, rate: 15000 },
-        { desc: 'Client Retainer Deposit (Apex Global Q3)', qty: 1, rate: 4800 },
-        { desc: 'Office Lease & Utility Monthly Payment', qty: 1, rate: -2200 },
+        { desc: 'Starting Operating Capital Balance Forward', qty: 1, rate: 500000 },
+        { desc: 'Client Retainer Deposit (Reliance Q3)', qty: 1, rate: 125000 },
+        { desc: 'Office Lease & Utility Monthly Payment', qty: 1, rate: -85000 },
       ]);
     } else if (id === 'rental-agreement') {
-      setAgreementTitle('Residential Lease & Tenancy Agreement');
-      setPartyA('Sunset Ridge Real Estate Holdings LLC (Landlord)');
-      setPartyB('Johnathan Miller (Tenant)');
-      setTermDuration('12 Months (Commencing 1st of Next Month)');
-      setJurisdiction('State of California, USA');
+      setAgreementTitle('Residential Tenancy Agreement (Under Model Tenancy Act)');
+      setPartyA('Shri Rajesh Sharma (Landlord)');
+      setPartyB('Amit Kumar Verma (Tenant)');
+      setTermDuration('11 Months (Standard Indian Tenancy Period)');
+      setJurisdiction('New Delhi, India');
     } else if (id === 'job-offer-letter') {
-      setAgreementTitle('Official Employment Offer Letter');
-      setPartyA('Hello PDF Technologies Inc. (Employer)');
-      setPartyB('Samantha Brooks (Candidate)');
-      setTermDuration('Full-Time Exempt Employment');
-      setJurisdiction('State of New York, USA');
+      setAgreementTitle('Letter of Appointment & Employment Offer');
+      setPartyA('Hello PDF Technologies India Pvt. Ltd. (Employer)');
+      setPartyB('Ananya Sharma (Candidate)');
+      setTermDuration('Permanent Full-Time Employment');
+      setJurisdiction('Bengaluru, Karnataka, India');
     } else if (id === 'nda-freelance-contract') {
-      setAgreementTitle('Independent Contractor Services Agreement');
-      setPartyA('Creative Motion Media LLC (Client)');
-      setPartyB('Alex Rivera (Contractor)');
-      setTermDuration('Project Completion (Target: 60 Days)');
-      setJurisdiction('State of Washington, USA');
+      setAgreementTitle('Mutual Non-Disclosure & Confidentiality Agreement');
+      setPartyA('Bharat Digital Innovations Pvt. Ltd. (Client)');
+      setPartyB('Rohan Deshmukh (Consultant)');
+      setTermDuration('2 Years from Effective Date');
+      setJurisdiction('Mumbai, Maharashtra, India (Indian Contract Act, 1872)');
     } else if (id === 'certificate-appreciation') {
       setCertType('CERTIFICATE OF APPRECIATION');
       setAchievementDesc(
@@ -298,51 +318,72 @@ export const BusinessDocumentTool: React.FC<BusinessDocumentToolProps> = ({ tool
         outputBytes = await generateBusinessInvoiceReceiptPDF({
           documentType: docType,
           documentNumber: docNumber,
-          date: new Date().toLocaleDateString(),
-          dueDate: 'Net 30 Days',
+          date: new Date().toLocaleDateString('en-IN'),
+          dueDate: 'Net 15 Days',
           companyName,
           companyAddress,
+          gstin: isGstInvoice ? gstin : undefined,
+          pan: isGstInvoice ? pan : undefined,
+          stateCode: isGstInvoice ? stateCode : undefined,
           clientName,
           clientEmail,
-          currency: currency.split(' ')[1] || '$',
+          clientGstin: isGstInvoice ? clientGstin : undefined,
+          currency: currency.split(' ')[1] || '₹',
           items,
           taxPercent,
+          cgstPercent: isGstInvoice ? cgstPercent : undefined,
+          sgstPercent: isGstInvoice ? sgstPercent : undefined,
+          isGstInvoice,
           paymentMethod,
           notes,
         });
       } else if (isAgreement) {
-        outputBytes = await generateLegalAgreementPDF({
-          title: agreementTitle,
-          partyA,
-          partyB,
-          effectiveDate: new Date().toLocaleDateString(),
-          jurisdiction,
-          termDuration,
-          purposeOrTerms: 'Confidentiality and proprietary work execution terms.',
-          clauses: [
-            {
-              title: 'Scope of Obligations & Confidentiality',
-              content:
-                'All proprietary software, financial records, client lists, algorithms, and trade secrets disclosed hereunder shall remain strictly confidential.',
-            },
-            {
-              title: 'Non-Disclosure & Restrictive Covenants',
-              content:
-                'The Receiving Party agrees not to disclose, duplicate, reverse engineer, or release any confidential materials to third parties without prior written consent.',
-            },
-            {
-              title: 'Governing Law and Severability',
-              content: `This agreement is governed by the laws of ${jurisdiction}. If any provision is deemed unenforceable, all other clauses remain in full force.`,
-            },
-          ],
-        });
+        if (isHraReceipt) {
+          outputBytes = await generateIndianRentReceiptPDF({
+            receiptNumber: 'HRR-' + new Date().getFullYear() + '-' + String(Math.floor(100 + Math.random() * 900)),
+            tenantName,
+            landlordName,
+            landlordPan,
+            propertyAddress,
+            rentAmount,
+            rentPeriod,
+            paymentMode: rentPaymentMode,
+            date: new Date().toLocaleDateString('en-IN'),
+          });
+        } else {
+          outputBytes = await generateLegalAgreementPDF({
+            title: agreementTitle,
+            partyA,
+            partyB,
+            effectiveDate: new Date().toLocaleDateString('en-IN'),
+            jurisdiction,
+            termDuration,
+            purposeOrTerms: 'Execution of professional services, tenancy, or contractual commitments under Indian Law.',
+            clauses: [
+              {
+                title: 'Scope of Obligations & Confidentiality',
+                content:
+                  'All proprietary intellectual property, commercial records, client databases, algorithms, and technical processes disclosed hereunder shall remain strictly confidential.',
+              },
+              {
+                title: 'Non-Disclosure & Restrictive Covenants',
+                content:
+                  'The Receiving Party agrees not to disclose, duplicate, reverse engineer, or release any confidential materials to third parties without prior written authorization.',
+              },
+              {
+                title: 'Governing Law and Dispute Resolution',
+                content: `This agreement is governed by the laws of India, including the Indian Contract Act, 1872. The courts in ${jurisdiction} shall have exclusive jurisdiction.`,
+              },
+            ],
+          });
+        }
       } else if (isAward) {
         outputBytes = await generateRichCertificatePDF({
           certificateType: certType,
           recipientName,
           achievementDescription: achievementDesc,
           organization: certOrg,
-          dateStr: new Date().toLocaleDateString(),
+          dateStr: new Date().toLocaleDateString('en-IN'),
           signatory1Name: signatory1,
           signatory1Title: 'Dean & Academic Chair',
           signatory2Name: signatory2,
@@ -361,10 +402,10 @@ export const BusinessDocumentTool: React.FC<BusinessDocumentToolProps> = ({ tool
         const rows =
           id === 'attendance-sheet'
             ? [
-                ['1', 'Sarah Jenkins', 'Engineering', '09:00 AM', '[Signed]'],
-                ['2', 'Michael Chang', 'Product Design', '09:05 AM', '[Signed]'],
-                ['3', 'Elena Rostova', 'Operations', '09:12 AM', '[Signed]'],
-                ['4', 'David Kim', 'Security & Compliance', '09:15 AM', '[Signed]'],
+                ['1', 'Aarav Patel', 'Engineering', '09:00 AM', '[Signed]'],
+                ['2', 'Priya Sundaram', 'Product Architecture', '09:05 AM', '[Signed]'],
+                ['3', 'Vikram Singh', 'Operations', '09:12 AM', '[Signed]'],
+                ['4', 'Neha Sharma', 'Security & DPDP Compliance', '09:15 AM', '[Signed]'],
               ]
             : id === 'inventory-sheet'
             ? [
@@ -375,24 +416,24 @@ export const BusinessDocumentTool: React.FC<BusinessDocumentToolProps> = ({ tool
               ]
             : id === 'project-timesheet'
             ? [
-                ['Monday', 'Core Engine Performance Tuning', '8.0', '0.0', 'Approved'],
-                ['Tuesday', 'Zero-Cloud Security Architecture', '8.0', '0.0', 'Approved'],
-                ['Wednesday', 'Offline Storage Sync Integration', '8.0', '1.5', 'Approved'],
-                ['Thursday', 'Automated Unit & E2E Validation', '8.0', '0.0', 'Approved'],
+                ['Monday', 'Core PDF Engine Performance Tuning', '8.0', '0.0', 'Approved'],
+                ['Tuesday', 'DPDP Act 2023 Security & Zero-Cloud Testing', '8.0', '0.0', 'Approved'],
+                ['Wednesday', 'Offline Storage & IndexedDB Verification', '8.0', '1.5', 'Approved'],
+                ['Thursday', 'Automated GST & Invoice Generation QA', '8.0', '0.0', 'Approved'],
                 ['Friday', 'Release Verification & Documentation', '8.0', '0.0', 'Approved'],
               ]
             : [
-                ['1', 'Review Q3 Performance & Scaling Goals', 'Sarah J.', 'Target achieved (+28%)', 'Dev Team'],
-                ['2', 'Client-side PDF privacy protocol update', 'Marcus S.', 'Pure browser memory mandated', 'Security'],
-                ['3', 'Mobile touch responsive layout improvements', 'Elena R.', 'Approved for production', 'Frontend'],
-                ['4', 'Open-source compliance verification', 'Arthur V.', 'All licenses audited green', 'Legal'],
+                ['1', 'Review Q3 Performance & Scaling Goals', 'Aarav P.', 'Target achieved (+28%)', 'Dev Team'],
+                ['2', 'Client-side PDF privacy protocol update', 'Vikram S.', 'Pure browser memory mandated', 'Security'],
+                ['3', 'Indian Government Portal document presets', 'Priya S.', 'UPSC/SSC presets live', 'Frontend'],
+                ['4', 'Open-source compliance verification', 'Neha S.', 'All licenses audited green', 'Legal'],
               ];
 
         outputBytes = await generateOperationsSheetPDF({
           sheetType: 'MEETING_MINUTES',
           title: opsTitle,
           subtitle: tool.name,
-          date: new Date().toLocaleDateString(),
+          date: new Date().toLocaleDateString('en-IN'),
           authorOrDept: opsAuthor,
           columns: cols,
           rows,
@@ -404,11 +445,11 @@ export const BusinessDocumentTool: React.FC<BusinessDocumentToolProps> = ({ tool
           degrees,
           regNumber,
           clinicName,
-          clinicAddress: '104 Wellness Boulevard, Medical Arts Center, Suite 400',
-          phone: '+1 (555) 432-8921',
+          clinicAddress: '12, Ring Road, Lajpat Nagar, New Delhi - 110024',
+          phone: '+91 98100 12345',
           patientName,
           patientAgeGender,
-          date: new Date().toLocaleDateString(),
+          date: new Date().toLocaleDateString('en-IN'),
           rxItems: rxMeds,
           adviceNotes: 'Drink plenty of water. Take all doses strictly after meals. Review after 7 days.',
         });
@@ -424,22 +465,22 @@ export const BusinessDocumentTool: React.FC<BusinessDocumentToolProps> = ({ tool
           experience: [
             {
               role: 'Lead Systems Architect',
-              company: 'Vertex Systems Inc.',
+              company: 'Infosys Digital Labs',
               duration: '2022 - Present',
-              bullet: 'Led modern web tools team delivering zero-server private PDF processing at scale.',
+              bullet: 'Led modern engineering team delivering high-throughput client-side document processing architectures.',
             },
             {
               role: 'Senior Software Engineer',
-              company: 'Nova Cloud Labs',
+              company: 'Tata Consultancy Services',
               duration: '2019 - 2022',
-              bullet: 'Designed high-performance micro-frontends and memory-safe WebAssembly pipelines.',
+              bullet: 'Architected distributed web services and high-performance WebAssembly document pipelines.',
             },
           ],
           education: [
             {
-              degree: 'B.S. in Computer Engineering',
-              school: 'University of California, Berkeley',
-              year: 'Graduated Magna Cum Laude',
+              degree: 'B.Tech in Computer Science & Engineering',
+              school: 'Indian Institute of Technology (IIT) Madras',
+              year: 'First Class with Distinction',
             },
           ],
         });
@@ -725,6 +766,107 @@ export const BusinessDocumentTool: React.FC<BusinessDocumentToolProps> = ({ tool
                   </div>
                 </div>
 
+                {/* Indian GST Details Section */}
+                <div className="p-3 rounded-xl bg-amber-50/70 dark:bg-amber-950/20 border border-amber-200/70 dark:border-amber-800/40 space-y-2.5">
+                  <div className="flex items-center justify-between">
+                    <label className="flex items-center gap-2 cursor-pointer font-bold text-amber-900 dark:text-amber-200">
+                      <input
+                        type="checkbox"
+                        checked={isGstInvoice}
+                        onChange={(e) => setIsGstInvoice(e.target.checked)}
+                        className="rounded text-red-600 focus:ring-red-500"
+                      />
+                      <span>Indian GST Tax Invoice (CGST + SGST)</span>
+                    </label>
+                    <span className="text-[10px] uppercase font-bold text-amber-700 dark:text-amber-300 bg-amber-100 dark:bg-amber-900/60 px-2 py-0.5 rounded-full">
+                      India
+                    </span>
+                  </div>
+
+                  {isGstInvoice && (
+                    <div className="space-y-2 pt-1">
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                        <div>
+                          <label className="font-semibold text-neutral-700 dark:text-neutral-300 block mb-0.5 text-[11px]">
+                            Supplier GSTIN
+                          </label>
+                          <input
+                            type="text"
+                            value={gstin}
+                            onChange={(e) => setGstin(e.target.value.toUpperCase())}
+                            placeholder="e.g. 29AAAAA0000A1Z5"
+                            className="w-full px-2.5 py-1.5 rounded-lg bg-white dark:bg-neutral-800 border border-neutral-300 dark:border-neutral-700 text-neutral-800 dark:text-neutral-200 uppercase font-mono text-[11px]"
+                          />
+                        </div>
+                        <div>
+                          <label className="font-semibold text-neutral-700 dark:text-neutral-300 block mb-0.5 text-[11px]">
+                            Supplier PAN
+                          </label>
+                          <input
+                            type="text"
+                            value={pan}
+                            onChange={(e) => setPan(e.target.value.toUpperCase())}
+                            placeholder="e.g. AAACA1234F"
+                            className="w-full px-2.5 py-1.5 rounded-lg bg-white dark:bg-neutral-800 border border-neutral-300 dark:border-neutral-700 text-neutral-800 dark:text-neutral-200 uppercase font-mono text-[11px]"
+                          />
+                        </div>
+                      </div>
+
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                        <div>
+                          <label className="font-semibold text-neutral-700 dark:text-neutral-300 block mb-0.5 text-[11px]">
+                            State & State Code
+                          </label>
+                          <input
+                            type="text"
+                            value={stateCode}
+                            onChange={(e) => setStateCode(e.target.value)}
+                            placeholder="e.g. 29 - Karnataka"
+                            className="w-full px-2.5 py-1.5 rounded-lg bg-white dark:bg-neutral-800 border border-neutral-300 dark:border-neutral-700 text-neutral-800 dark:text-neutral-200 text-[11px]"
+                          />
+                        </div>
+                        <div>
+                          <label className="font-semibold text-neutral-700 dark:text-neutral-300 block mb-0.5 text-[11px]">
+                            Client / Buyer GSTIN
+                          </label>
+                          <input
+                            type="text"
+                            value={clientGstin}
+                            onChange={(e) => setClientGstin(e.target.value.toUpperCase())}
+                            placeholder="e.g. 27AAAAA0000A1Z2"
+                            className="w-full px-2.5 py-1.5 rounded-lg bg-white dark:bg-neutral-800 border border-neutral-300 dark:border-neutral-700 text-neutral-800 dark:text-neutral-200 uppercase font-mono text-[11px]"
+                          />
+                        </div>
+                      </div>
+
+                      <div className="grid grid-cols-2 gap-2 pt-1">
+                        <div>
+                          <label className="font-semibold text-neutral-700 dark:text-neutral-300 block mb-0.5 text-[11px]">
+                            CGST (%)
+                          </label>
+                          <input
+                            type="number"
+                            value={cgstPercent}
+                            onChange={(e) => setCgstPercent(parseFloat(e.target.value) || 0)}
+                            className="w-full px-2.5 py-1.5 rounded-lg bg-white dark:bg-neutral-800 border border-neutral-300 dark:border-neutral-700 text-neutral-800 dark:text-neutral-200 text-[11px]"
+                          />
+                        </div>
+                        <div>
+                          <label className="font-semibold text-neutral-700 dark:text-neutral-300 block mb-0.5 text-[11px]">
+                            SGST (%)
+                          </label>
+                          <input
+                            type="number"
+                            value={sgstPercent}
+                            onChange={(e) => setSgstPercent(parseFloat(e.target.value) || 0)}
+                            className="w-full px-2.5 py-1.5 rounded-lg bg-white dark:bg-neutral-800 border border-neutral-300 dark:border-neutral-700 text-neutral-800 dark:text-neutral-200 text-[11px]"
+                          />
+                        </div>
+                      </div>
+                    </div>
+                  )}
+                </div>
+
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-2">
                   <div>
                     <label className="font-bold text-neutral-700 dark:text-neutral-300 block mb-1">Payment Method</label>
@@ -736,7 +878,7 @@ export const BusinessDocumentTool: React.FC<BusinessDocumentToolProps> = ({ tool
                     />
                   </div>
                   <div>
-                    <label className="font-bold text-neutral-700 dark:text-neutral-300 block mb-1">Tax Rate (%)</label>
+                    <label className="font-bold text-neutral-700 dark:text-neutral-300 block mb-1">Total Tax Rate (%)</label>
                     <input
                       type="number"
                       value={taxPercent}
@@ -761,57 +903,167 @@ export const BusinessDocumentTool: React.FC<BusinessDocumentToolProps> = ({ tool
             {/* 2. AGREEMENT / CONTRACT FORM */}
             {isAgreement && (
               <div className="space-y-3 text-xs">
-                <div>
-                  <label className="font-bold text-neutral-700 dark:text-neutral-300 block mb-1">Agreement Title</label>
-                  <input
-                    type="text"
-                    value={agreementTitle}
-                    onChange={(e) => setAgreementTitle(e.target.value)}
-                    className="w-full px-3 py-2 rounded-lg bg-neutral-50 dark:bg-neutral-800 border border-neutral-300 dark:border-neutral-700 text-neutral-800 dark:text-neutral-200 font-bold"
-                  />
+                {/* Agreement Mode Selector (Tenancy Agreement vs HRA Rent Receipt) */}
+                <div className="flex rounded-lg bg-neutral-100 dark:bg-neutral-800 p-1 border border-neutral-200 dark:border-neutral-700">
+                  <button
+                    type="button"
+                    onClick={() => setIsHraReceipt(false)}
+                    className={`flex-1 py-1.5 px-3 rounded-md font-semibold text-xs transition-colors ${
+                      !isHraReceipt
+                        ? 'bg-white dark:bg-neutral-900 text-red-600 dark:text-red-400 shadow-2xs'
+                        : 'text-neutral-600 dark:text-neutral-400 hover:text-neutral-900'
+                    }`}
+                  >
+                    Legal Agreement
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setIsHraReceipt(true)}
+                    className={`flex-1 py-1.5 px-3 rounded-md font-semibold text-xs transition-colors ${
+                      isHraReceipt
+                        ? 'bg-white dark:bg-neutral-900 text-red-600 dark:text-red-400 shadow-2xs'
+                        : 'text-neutral-600 dark:text-neutral-400 hover:text-neutral-900'
+                    }`}
+                  >
+                    HRA Rent Receipt (Sec 10(13A))
+                  </button>
                 </div>
 
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                  <div>
-                    <label className="font-bold text-neutral-700 dark:text-neutral-300 block mb-1">Party A (First Party)</label>
-                    <input
-                      type="text"
-                      value={partyA}
-                      onChange={(e) => setPartyA(e.target.value)}
-                      className="w-full px-3 py-2 rounded-lg bg-neutral-50 dark:bg-neutral-800 border border-neutral-300 dark:border-neutral-700 text-neutral-800 dark:text-neutral-200"
-                    />
-                  </div>
-                  <div>
-                    <label className="font-bold text-neutral-700 dark:text-neutral-300 block mb-1">Party B (Second Party)</label>
-                    <input
-                      type="text"
-                      value={partyB}
-                      onChange={(e) => setPartyB(e.target.value)}
-                      className="w-full px-3 py-2 rounded-lg bg-neutral-50 dark:bg-neutral-800 border border-neutral-300 dark:border-neutral-700 text-neutral-800 dark:text-neutral-200"
-                    />
-                  </div>
-                </div>
+                {isHraReceipt ? (
+                  <div className="space-y-3 p-3 rounded-xl bg-neutral-50 dark:bg-neutral-800/50 border border-neutral-200 dark:border-neutral-700">
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                      <div>
+                        <label className="font-bold text-neutral-700 dark:text-neutral-300 block mb-1">Tenant Name (Employee)</label>
+                        <input
+                          type="text"
+                          value={tenantName}
+                          onChange={(e) => setTenantName(e.target.value)}
+                          className="w-full px-3 py-2 rounded-lg bg-white dark:bg-neutral-800 border border-neutral-300 dark:border-neutral-700 text-neutral-800 dark:text-neutral-200 font-semibold"
+                        />
+                      </div>
+                      <div>
+                        <label className="font-bold text-neutral-700 dark:text-neutral-300 block mb-1">Landlord Name (Owner)</label>
+                        <input
+                          type="text"
+                          value={landlordName}
+                          onChange={(e) => setLandlordName(e.target.value)}
+                          className="w-full px-3 py-2 rounded-lg bg-white dark:bg-neutral-800 border border-neutral-300 dark:border-neutral-700 text-neutral-800 dark:text-neutral-200 font-semibold"
+                        />
+                      </div>
+                    </div>
 
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                  <div>
-                    <label className="font-bold text-neutral-700 dark:text-neutral-300 block mb-1">Governing Jurisdiction</label>
-                    <input
-                      type="text"
-                      value={jurisdiction}
-                      onChange={(e) => setJurisdiction(e.target.value)}
-                      className="w-full px-3 py-2 rounded-lg bg-neutral-50 dark:bg-neutral-800 border border-neutral-300 dark:border-neutral-700 text-neutral-800 dark:text-neutral-200"
-                    />
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                      <div>
+                        <label className="font-bold text-neutral-700 dark:text-neutral-300 block mb-1">
+                          Landlord PAN (Required if &gt; Rs. 1 Lakh/yr)
+                        </label>
+                        <input
+                          type="text"
+                          value={landlordPan}
+                          onChange={(e) => setLandlordPan(e.target.value.toUpperCase())}
+                          placeholder="ABCDE1234F"
+                          className="w-full px-3 py-2 rounded-lg bg-white dark:bg-neutral-800 border border-neutral-300 dark:border-neutral-700 text-neutral-800 dark:text-neutral-200 uppercase font-mono font-bold"
+                        />
+                      </div>
+                      <div>
+                        <label className="font-bold text-neutral-700 dark:text-neutral-300 block mb-1">Monthly Rent Amount (Rs.)</label>
+                        <input
+                          type="number"
+                          value={rentAmount}
+                          onChange={(e) => setRentAmount(parseFloat(e.target.value) || 0)}
+                          className="w-full px-3 py-2 rounded-lg bg-white dark:bg-neutral-800 border border-neutral-300 dark:border-neutral-700 text-neutral-800 dark:text-neutral-200 font-bold"
+                        />
+                      </div>
+                    </div>
+
+                    <div>
+                      <label className="font-bold text-neutral-700 dark:text-neutral-300 block mb-1">Rented House / Flat Address</label>
+                      <input
+                        type="text"
+                        value={propertyAddress}
+                        onChange={(e) => setPropertyAddress(e.target.value)}
+                        className="w-full px-3 py-2 rounded-lg bg-white dark:bg-neutral-800 border border-neutral-300 dark:border-neutral-700 text-neutral-800 dark:text-neutral-200"
+                      />
+                    </div>
+
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                      <div>
+                        <label className="font-bold text-neutral-700 dark:text-neutral-300 block mb-1">Rent Period (Month &amp; Year)</label>
+                        <input
+                          type="text"
+                          value={rentPeriod}
+                          onChange={(e) => setRentPeriod(e.target.value)}
+                          placeholder="e.g. October 2026"
+                          className="w-full px-3 py-2 rounded-lg bg-white dark:bg-neutral-800 border border-neutral-300 dark:border-neutral-700 text-neutral-800 dark:text-neutral-200"
+                        />
+                      </div>
+                      <div>
+                        <label className="font-bold text-neutral-700 dark:text-neutral-300 block mb-1">Payment Mode</label>
+                        <input
+                          type="text"
+                          value={rentPaymentMode}
+                          onChange={(e) => setRentPaymentMode(e.target.value)}
+                          placeholder="UPI / NEFT / Cheque"
+                          className="w-full px-3 py-2 rounded-lg bg-white dark:bg-neutral-800 border border-neutral-300 dark:border-neutral-700 text-neutral-800 dark:text-neutral-200"
+                        />
+                      </div>
+                    </div>
                   </div>
-                  <div>
-                    <label className="font-bold text-neutral-700 dark:text-neutral-300 block mb-1">Agreement Duration / Term</label>
-                    <input
-                      type="text"
-                      value={termDuration}
-                      onChange={(e) => setTermDuration(e.target.value)}
-                      className="w-full px-3 py-2 rounded-lg bg-neutral-50 dark:bg-neutral-800 border border-neutral-300 dark:border-neutral-700 text-neutral-800 dark:text-neutral-200"
-                    />
-                  </div>
-                </div>
+                ) : (
+                  <>
+                    <div>
+                      <label className="font-bold text-neutral-700 dark:text-neutral-300 block mb-1">Agreement Title</label>
+                      <input
+                        type="text"
+                        value={agreementTitle}
+                        onChange={(e) => setAgreementTitle(e.target.value)}
+                        className="w-full px-3 py-2 rounded-lg bg-neutral-50 dark:bg-neutral-800 border border-neutral-300 dark:border-neutral-700 text-neutral-800 dark:text-neutral-200 font-bold"
+                      />
+                    </div>
+
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                      <div>
+                        <label className="font-bold text-neutral-700 dark:text-neutral-300 block mb-1">Party A (First Party)</label>
+                        <input
+                          type="text"
+                          value={partyA}
+                          onChange={(e) => setPartyA(e.target.value)}
+                          className="w-full px-3 py-2 rounded-lg bg-neutral-50 dark:bg-neutral-800 border border-neutral-300 dark:border-neutral-700 text-neutral-800 dark:text-neutral-200"
+                        />
+                      </div>
+                      <div>
+                        <label className="font-bold text-neutral-700 dark:text-neutral-300 block mb-1">Party B (Second Party)</label>
+                        <input
+                          type="text"
+                          value={partyB}
+                          onChange={(e) => setPartyB(e.target.value)}
+                          className="w-full px-3 py-2 rounded-lg bg-neutral-50 dark:bg-neutral-800 border border-neutral-300 dark:border-neutral-700 text-neutral-800 dark:text-neutral-200"
+                        />
+                      </div>
+                    </div>
+
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                      <div>
+                        <label className="font-bold text-neutral-700 dark:text-neutral-300 block mb-1">Governing Jurisdiction</label>
+                        <input
+                          type="text"
+                          value={jurisdiction}
+                          onChange={(e) => setJurisdiction(e.target.value)}
+                          className="w-full px-3 py-2 rounded-lg bg-neutral-50 dark:bg-neutral-800 border border-neutral-300 dark:border-neutral-700 text-neutral-800 dark:text-neutral-200"
+                        />
+                      </div>
+                      <div>
+                        <label className="font-bold text-neutral-700 dark:text-neutral-300 block mb-1">Agreement Duration / Term</label>
+                        <input
+                          type="text"
+                          value={termDuration}
+                          onChange={(e) => setTermDuration(e.target.value)}
+                          className="w-full px-3 py-2 rounded-lg bg-neutral-50 dark:bg-neutral-800 border border-neutral-300 dark:border-neutral-700 text-neutral-800 dark:text-neutral-200"
+                        />
+                      </div>
+                    </div>
+                  </>
+                )}
               </div>
             )}
 
