@@ -2,6 +2,7 @@ import { ToolItem, ToolCategory, CategoryInfo } from '../types';
 
 export const CATEGORIES: CategoryInfo[] = [
   { id: 'all', name: 'All Tools', description: 'Browse all 100+ PDF & document processing tools', icon: 'LayoutGrid', count: 108 },
+  { id: 'trending', name: 'Trending', description: 'Fastest growing and trending community-favorite PDF tools', icon: 'Flame', count: 12 },
   { id: 'organize', name: 'Organize PDF', description: 'Merge, split, reorder, rotate, and manage PDF pages', icon: 'Layers', count: 18 },
   { id: 'convert-to-pdf', name: 'Convert to PDF', description: 'Transform images, text, markdown, and tables into PDF', icon: 'FileInput', count: 18 },
   { id: 'convert-from-pdf', name: 'Convert from PDF', description: 'Extract images, text, data, and layout from existing PDFs', icon: 'FileOutput', count: 14 },

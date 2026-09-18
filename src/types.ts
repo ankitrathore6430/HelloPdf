@@ -1,5 +1,6 @@
 export type ToolCategory =
   | 'all'
+  | 'trending'
   | 'organize'
   | 'convert-to-pdf'
   | 'convert-from-pdf'

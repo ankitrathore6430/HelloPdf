@@ -33,7 +33,9 @@ export const AllToolsSection: React.FC<AllToolsSectionProps> = ({
     let list = [...tools];
 
     // Category filter
-    if (selectedCategory !== 'all') {
+    if (selectedCategory === 'trending') {
+      list = list.filter((t) => t.badge === 'Trending' || (t.featured && t.rank <= 6));
+    } else if (selectedCategory !== 'all') {
       list = list.filter((t) => t.category === selectedCategory);
     }
 
