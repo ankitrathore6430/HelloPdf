@@ -1,15 +1,16 @@
 import { ToolItem, ToolCategory, CategoryInfo } from '../types';
 
 export const CATEGORIES: CategoryInfo[] = [
-  { id: 'all', name: 'All Tools', description: 'Browse all 100+ PDF & document processing tools', icon: 'LayoutGrid', count: 108 },
-  { id: 'trending', name: 'Trending', description: 'Fastest growing and trending community-favorite PDF tools', icon: 'Flame', count: 12 },
-  { id: 'organize', name: 'Organize PDF', description: 'Merge, split, reorder, rotate, and manage PDF pages', icon: 'Layers', count: 18 },
-  { id: 'convert-to-pdf', name: 'Convert to PDF', description: 'Transform images, text, markdown, and tables into PDF', icon: 'FileInput', count: 18 },
-  { id: 'convert-from-pdf', name: 'Convert from PDF', description: 'Extract images, text, data, and layout from existing PDFs', icon: 'FileOutput', count: 14 },
-  { id: 'optimize', name: 'Optimize & Clean', description: 'Compress size, strip metadata, flatten, and repair PDFs', icon: 'Zap', count: 12 },
-  { id: 'security', name: 'Security & Rights', description: 'Password protect, unlock, watermark, sign, and redact', icon: 'ShieldCheck', count: 14 },
-  { id: 'edit-annotate', name: 'Edit & Annotate', description: 'Page numbers, headers, stamps, bates numbering, dark mode', icon: 'PenTool', count: 16 },
-  { id: 'business', name: 'Business & Docs', description: 'Generate invoices, receipts, certificates, letters, and forms', icon: 'FileSpreadsheet', count: 16 },
+  { id: 'all', name: 'All Tools', description: 'Browse all 108 PDF & document processing tools', icon: 'LayoutGrid', count: 108 },
+  { id: 'trending', name: 'Trending', description: 'Fastest growing and trending community-favorite PDF tools', icon: 'Flame', count: 17 },
+  { id: 'organize', name: 'Organize PDF', description: 'Merge, split, reorder, rotate, and manage PDF pages', icon: 'Layers', count: 21 },
+  { id: 'convert-to-pdf', name: 'Convert to PDF', description: 'Transform images, text, markdown, and tables into PDF', icon: 'FileInput', count: 9 },
+  { id: 'convert-from-pdf', name: 'Convert from PDF', description: 'Extract images, text, data, and layout from existing PDFs', icon: 'FileOutput', count: 8 },
+  { id: 'optimize', name: 'Optimize & Clean', description: 'Compress size, strip metadata, flatten, and repair PDFs', icon: 'Zap', count: 5 },
+  { id: 'security', name: 'Security & Rights', description: 'Password protect, unlock, watermark, sign, and redact', icon: 'ShieldCheck', count: 12 },
+  { id: 'edit-annotate', name: 'Edit & Annotate', description: 'Page numbers, headers, stamps, bates numbering, dark mode', icon: 'PenTool', count: 14 },
+  { id: 'business', name: 'Business & Docs', description: 'Generate invoices, receipts, certificates, letters, and forms', icon: 'FileSpreadsheet', count: 25 },
+  { id: 'advanced', name: 'Advanced & Dev', description: 'Metadata, inspection, compare, base64, font and hex analyzer', icon: 'Code', count: 14 },
 ];
 
 export const TOOLS_DATA: ToolItem[] = [

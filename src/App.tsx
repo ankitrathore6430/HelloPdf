@@ -95,8 +95,10 @@ export default function App() {
         onSelectCategory={(cat) => {
           if (activeTool) navigateHome();
           setSelectedCategory(cat);
-          const el = document.getElementById('all-tools');
-          el?.scrollIntoView({ behavior: 'smooth' });
+          setTimeout(() => {
+            const el = document.getElementById('all-tools');
+            el?.scrollIntoView({ behavior: 'smooth' });
+          }, 60);
         }}
         activeCategoryId={selectedCategory}
         activeToolId={activeTool?.id}

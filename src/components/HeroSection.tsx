@@ -33,9 +33,10 @@ export const HeroSection: React.FC<HeroSectionProps> = ({
 
       <div className="relative max-w-5xl mx-auto px-4 sm:px-6 text-center">
         {/* Top pill badge */}
-        <div className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-emerald-100/90 dark:bg-emerald-950/60 border border-emerald-300 dark:border-emerald-800 text-emerald-900 dark:text-emerald-300 text-xs font-bold mb-5 shadow-2xs">
-          <Sparkles className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400" />
-          <span>108 Tools • All Pro Features 100% Free Forever • No Paywalls • In-Browser</span>
+        <div className="inline-flex items-center gap-1.5 sm:gap-2 px-3 sm:px-3.5 py-1 sm:py-1.5 rounded-full bg-emerald-100/90 dark:bg-emerald-950/60 border border-emerald-300 dark:border-emerald-800 text-emerald-900 dark:text-emerald-300 text-[11px] sm:text-xs font-bold mb-4 sm:mb-5 shadow-2xs max-w-full">
+          <Sparkles className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400 shrink-0" />
+          <span className="hidden sm:inline">108 Tools • All Pro Features 100% Free Forever • No Paywalls • In-Browser</span>
+          <span className="sm:hidden truncate">108 Tools • 100% Free & In-Browser</span>
         </div>
 
         {/* Hero Main Heading */}
